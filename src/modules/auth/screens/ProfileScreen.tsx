@@ -35,7 +35,8 @@ const EMAIL_REGEX = /^\S+@\S+\.\S+$/;
 
 export function ProfileScreen() {
   const { data: user, isLoading: isLoadingMe } = useMe();
-  const { data: business, isLoading: isLoadingBusiness } = useBusinessSettings();
+  const { data: business, isLoading: isLoadingBusiness } =
+    useBusinessSettings();
   const { mutate: saveProfile, isPending: isSaving } = useSaveProfile();
   const { mutate: logout, isPending: isLoggingOut } = useLogout();
 
@@ -45,8 +46,8 @@ export function ProfileScreen() {
   const [hasPickedLogo, setHasPickedLogo] = useState(false);
 
   useEffect(() => {
-    setCompanyName((prev) => prev || business?.businessName || user?.name || '');
-    setEmail((prev) => prev || business?.email || user?.email || '');
+    setCompanyName(prev => prev || business?.businessName || user?.name || '');
+    setEmail(prev => prev || business?.email || user?.email || '');
     if (!hasPickedLogo && business?.logoUrl) {
       const fullUrl = business.logoUrl.startsWith('http')
         ? business.logoUrl
@@ -58,7 +59,8 @@ export function ProfileScreen() {
   const isLoadingInitial = isLoadingMe || isLoadingBusiness;
   const isBusy = isSaving || isLoggingOut;
   const isEmailValid = EMAIL_REGEX.test(email.trim());
-  const canSave = companyName.trim().length >= 2 && isEmailValid;
+  const hasLogo = Boolean(logoUri);
+  const canSave = companyName.trim().length >= 2 && isEmailValid && hasLogo;
 
   const handleSelectLogo = (uri: string) => {
     setHasPickedLogo(true);
@@ -67,6 +69,10 @@ export function ProfileScreen() {
 
   const handleSaveAndContinue = () => {
     if (isBusy) return;
+    if (!hasLogo) {
+      popup.error('Logo Required', 'Please upload your company logo.');
+      return;
+    }
     if (!canSave) {
       popup.error(
         'Invalid Input',
@@ -85,7 +91,7 @@ export function ProfileScreen() {
         onSuccess: async () => {
           await authStore.completeProfile();
         },
-        onError: (err) => {
+        onError: err => {
           const axiosErr = err as AxiosError<ApiResponse<null>>;
           popup.error(
             'Save Failed',

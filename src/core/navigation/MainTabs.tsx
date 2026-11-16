@@ -16,6 +16,7 @@ import type {
   SalesTopTabsParamList,
   StockTopTabsParamList,
 } from './types';
+import { MainHeader } from '../components/MainHeader';
 import { PlaceholderScreen } from './PlaceholderScreen';
 import { MoreStack } from './MoreStack';
 import { colors, fontSize, fontWeight, radius, shadows } from '../theme';
@@ -196,16 +197,12 @@ export function MainTabs() {
   const bottomPad = Math.max(insets.bottom, 10);
 
   return (
-    <BottomTab.Navigator
-      screenOptions={{
-        headerStyle: { backgroundColor: colors.surface },
-        headerTintColor: colors.textPrimary,
-        headerTitleStyle: {
-          fontWeight: fontWeight.bold,
-          fontSize: fontSize.lg,
-        },
-        headerShadowVisible: false,
-        tabBarActiveTintColor: colors.primary,
+    <View style={styles.wrapper}>
+      <MainHeader />
+      <BottomTab.Navigator
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
           backgroundColor: colors.surface,
@@ -263,15 +260,19 @@ export function MainTabs() {
         component={MoreStack}
         options={{
           title: 'More',
-          headerShown: false,
           tabBarIcon: renderMoreIcon,
         }}
       />
-    </BottomTab.Navigator>
+      </BottomTab.Navigator>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   iconPill: {
     paddingHorizontal: 14,
     paddingVertical: 4,
