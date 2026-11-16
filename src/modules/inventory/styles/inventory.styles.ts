@@ -291,6 +291,11 @@ export const inventoryStyles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.xs,
   },
+  listFooterLoader: {
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   // StockEntryFormScreen
   formScreen: {
     flex: 1,

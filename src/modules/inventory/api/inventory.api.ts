@@ -1,13 +1,14 @@
 import { apiDelete, apiGet, apiPatch, apiPost } from '../../../core/api';
 import { INVENTORY_PATHS } from '../constants';
 import type {
+  AnalyticsPeriod,
   CategoryItem,
   CreateProductPayload,
   CreateProductResponse,
   CreateStockEntryPayload,
   CreateSupplierPayload,
   InventoryListResponse,
-  AnalyticsPeriod,
+  PaginationMeta,
   ProductAnalyticsData,
   ProductDetailData,
   StockEntryRecord,
@@ -77,11 +78,15 @@ export const inventoryApi = {
       { name },
     ),
 
-  getSuppliers: (search?: string) =>
-    apiGet<{ success: boolean; data: { items: SupplierItem[] } }>(
-      INVENTORY_PATHS.suppliers,
-      { limit: 50, ...(search ? { search } : {}) },
-    ),
+  getSuppliers: (search?: string, page = 1, limit = 20) =>
+    apiGet<{
+      success: boolean;
+      data: { items: SupplierItem[]; pagination?: PaginationMeta };
+    }>(INVENTORY_PATHS.suppliers, {
+      page,
+      limit,
+      ...(search ? { search } : {}),
+    }),
 
   createSupplier: (payload: CreateSupplierPayload) =>
     apiPost<{ success: boolean; data: SupplierItem }, CreateSupplierPayload>(

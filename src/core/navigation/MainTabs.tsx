@@ -20,7 +20,7 @@ import { MainHeader } from '../components/MainHeader';
 import { PlaceholderScreen } from './PlaceholderScreen';
 import { MoreStack } from './MoreStack';
 import { colors, fontSize, fontWeight, radius, shadows } from '../theme';
-import { AllStockScreen } from '../../modules/inventory';
+import { AllStockScreen, LowStockScreen } from '../../modules/inventory';
 
 const BottomTab = createBottomTabNavigator<MainTabsParamList>();
 const StockTopTab = createMaterialTopTabNavigator<StockTopTabsParamList>();
@@ -62,7 +62,12 @@ function DashboardScreen() {
 
 function StockTopTabs() {
   return (
-    <StockTopTab.Navigator screenOptions={topTabScreenOptions}>
+    <StockTopTab.Navigator
+      screenOptions={{
+        ...topTabScreenOptions,
+        tabBarScrollEnabled: false,
+      }}
+    >
       <StockTopTab.Screen
         name="AllStock"
         options={{ title: 'All Stock' }}
@@ -71,17 +76,7 @@ function StockTopTabs() {
       <StockTopTab.Screen
         name="LowStock"
         options={{ title: 'Low Stock' }}
-        children={() => <PlaceholderScreen title="Low Stock Alerts" />}
-      />
-      <StockTopTab.Screen
-        name="Batches"
-        options={{ title: 'Batches' }}
-        children={() => <PlaceholderScreen title="Inventory Batches" />}
-      />
-      <StockTopTab.Screen
-        name="StockAudits"
-        options={{ title: 'Audits' }}
-        children={() => <PlaceholderScreen title="Stock Audits" />}
+        component={LowStockScreen}
       />
     </StockTopTab.Navigator>
   );

@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { inventoryApi, type InventoryListParams } from '../api';
 import { inventoryLogger } from '../logs';
 import type {
@@ -30,6 +35,37 @@ export function useInventoryList(params?: InventoryListParams) {
       const res = await inventoryApi.getList(params);
       inventoryLogger.info('getList:success', res.data);
       return res.data?.items ?? res.data?.records ?? [];
+    },
+  });
+}
+
+export function useInfiniteInventoryList(
+  params?: Omit<InventoryListParams, 'page'>,
+) {
+  const limit = params?.limit ?? 20;
+
+  return useInfiniteQuery({
+    queryKey: ['inventory', 'infiniteList', params] as const,
+    initialPageParam: 1,
+    queryFn: async ({ pageParam }) => {
+      const res = await inventoryApi.getList({
+        ...params,
+        page: pageParam,
+        limit,
+      });
+      inventoryLogger.info('getInfiniteList:success', {
+        page: pageParam,
+        count: res.data?.items?.length ?? 0,
+      });
+      return {
+        items: res.data?.items ?? res.data?.records ?? [],
+        pagination: res.data?.pagination,
+      };
+    },
+    getNextPageParam: (lastPage) => {
+      const p = lastPage.pagination;
+      if (!p || p.page >= p.totalPages) return undefined;
+      return p.page + 1;
     },
   });
 }
@@ -143,6 +179,25 @@ export function useSuppliers(search?: string) {
       const res = await inventoryApi.getSuppliers(search);
       inventoryLogger.info('getSuppliers:success', res.data);
       return res.data?.items ?? [];
+    },
+  });
+}
+
+export function useInfiniteSuppliers(search?: string) {
+  return useInfiniteQuery({
+    queryKey: ['inventory', 'infiniteSuppliers', search] as const,
+    initialPageParam: 1,
+    queryFn: async ({ pageParam }) => {
+      const res = await inventoryApi.getSuppliers(search, pageParam, 20);
+      return {
+        items: res.data?.items ?? [],
+        pagination: res.data?.pagination,
+      };
+    },
+    getNextPageParam: (lastPage) => {
+      const p = lastPage.pagination;
+      if (!p || p.page >= p.totalPages) return undefined;
+      return p.page + 1;
     },
   });
 }

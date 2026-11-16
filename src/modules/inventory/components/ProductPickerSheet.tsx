@@ -28,7 +28,7 @@ import {
   touchTarget,
 } from '../../../core/theme';
 import { INVENTORY_COPY } from '../data';
-import { useInventoryList } from '../hooks';
+import { useInfiniteInventoryList } from '../hooks';
 import { inventoryStyles } from '../styles';
 import type { InventoryItem, ProductImageItem } from '../types';
 
@@ -59,11 +59,28 @@ export function ProductPickerSheet({
 
   const snapPoints = useMemo(() => ['100%'], []);
 
-  const { data: products = [], isLoading } = useInventoryList({
+  const {
+    data,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteInventoryList({
     search: debouncedSearch || undefined,
-    limit: 100,
+    limit: 20,
     stockFilter: 'ALL',
   });
+
+  const products = useMemo(
+    () => data?.pages.flatMap((page) => page.items) ?? [],
+    [data],
+  );
+
+  const handleLoadMore = () => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  };
 
   const handleOpen = () => {
     Keyboard.dismiss();
@@ -199,6 +216,15 @@ export function ProductPickerSheet({
                   </TouchableOpacity>
                 );
               }}
+              onEndReached={handleLoadMore}
+              onEndReachedThreshold={0.4}
+              ListFooterComponent={
+                isFetchingNextPage ? (
+                  <View style={inventoryStyles.listFooterLoader}>
+                    <IosLoader size={20} color={colors.primary} />
+                  </View>
+                ) : undefined
+              }
               ListEmptyComponent={
                 <Text style={styles.emptyText}>No products found.</Text>
               }

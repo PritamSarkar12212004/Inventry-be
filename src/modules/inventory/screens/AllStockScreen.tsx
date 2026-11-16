@@ -28,7 +28,7 @@ import {
   type CategorySummary,
 } from '../components';
 import { INVENTORY_COPY } from '../data';
-import { useInventoryList } from '../hooks';
+import { useInfiniteInventoryList } from '../hooks';
 import { inventoryStyles } from '../styles';
 import type { InventoryItem, ProductImageItem } from '../types';
 
@@ -53,14 +53,29 @@ export function AllStockScreen() {
   const debouncedSearch = useDebounce(search.trim(), 350);
 
   const {
-    data: items = [],
+    data,
     isLoading,
     isRefetching,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
     refetch,
-  } = useInventoryList({
+  } = useInfiniteInventoryList({
     search: debouncedSearch || undefined,
     stockFilter: 'ALL',
+    limit: 20,
   });
+
+  const items = useMemo(
+    () => data?.pages.flatMap((page) => page.items) ?? [],
+    [data],
+  );
+
+  const handleLoadMore = () => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  };
 
   const filteredItems = useMemo(() => {
     if (!selectedCategory) return items;
@@ -206,6 +221,15 @@ export function AllStockScreen() {
               onPress={handleSelectCategoryFromGrid}
             />
           )}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={
+            isFetchingNextPage ? (
+              <View style={inventoryStyles.listFooterLoader}>
+                <IosLoader size={20} color={colors.primary} />
+              </View>
+            ) : undefined
+          }
           ListEmptyComponent={
             <View style={inventoryStyles.centerBox}>
               <PackageOpen size={40} color={colors.textMuted} />
@@ -243,6 +267,15 @@ export function AllStockScreen() {
               }
             />
           )}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={
+            isFetchingNextPage ? (
+              <View style={inventoryStyles.listFooterLoader}>
+                <IosLoader size={20} color={colors.primary} />
+              </View>
+            ) : undefined
+          }
           ListEmptyComponent={
             <View style={inventoryStyles.centerBox}>
               <PackageOpen size={40} color={colors.textMuted} />

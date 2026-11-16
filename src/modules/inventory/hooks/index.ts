@@ -1,11 +1,13 @@
 export {
   INVENTORY_QUERY_KEYS,
   useInventoryList,
+  useInfiniteInventoryList,
   useCreateStockEntry,
   useCreateProductAndStock,
   useCategories,
   useCreateCategory,
   useSuppliers,
+  useInfiniteSuppliers,
   useCreateSupplier,
   useProductDetail,
   useProductMovements,

@@ -7,6 +7,7 @@ export type {
   CreateSupplierPayload,
   InventoryItem,
   InventoryListResponse,
+  PaginationMeta,
   ProductAnalyticsData,
   ProductAnalyticsPoint,
   ProductDetailData,

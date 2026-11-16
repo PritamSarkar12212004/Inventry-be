@@ -6,8 +6,6 @@ export type AuthStackParamList = {
 export type StockTopTabsParamList = {
   AllStock: undefined;
   LowStock: undefined;
-  Batches: undefined;
-  StockAudits: undefined;
 };
 
 export type SalesTopTabsParamList = {

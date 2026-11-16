@@ -10,6 +10,7 @@ import type { InventoryItem, ProductImageItem, StockStatus } from '../types';
 type StockItemCardProps = {
   item: InventoryItem;
   onPress: (item: InventoryItem) => void;
+  showCategory?: boolean;
 };
 
 const STATUS_STYLE_MAP: Record<
@@ -45,6 +46,7 @@ function resolveImageUri(images: ProductImageItem[]): string | null {
 export const StockItemCard = memo(function StockItemCardComponent({
   item,
   onPress,
+  showCategory = true,
 }: StockItemCardProps) {
   const statusTheme =
     STATUS_STYLE_MAP[item.stockStatus] ?? STATUS_STYLE_MAP.IN_STOCK;
@@ -84,11 +86,13 @@ export const StockItemCard = memo(function StockItemCardComponent({
                 <Text style={inventoryStyles.productCode}>
                   {item.productCode}
                 </Text>
-                <View style={inventoryStyles.categoryTag}>
-                  <Text style={inventoryStyles.categoryTagText}>
-                    {item.category || 'General'}
-                  </Text>
-                </View>
+                {showCategory ? (
+                  <View style={inventoryStyles.categoryTag}>
+                    <Text style={inventoryStyles.categoryTagText}>
+                      {item.category || 'General'}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
             </View>
 

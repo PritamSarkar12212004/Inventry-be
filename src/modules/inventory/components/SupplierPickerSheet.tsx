@@ -26,7 +26,7 @@ import {
   touchTarget,
 } from '../../../core/theme';
 import { INVENTORY_COPY } from '../data';
-import { useSuppliers } from '../hooks';
+import { useInfiniteSuppliers } from '../hooks';
 import { inventoryStyles } from '../styles';
 import type { SupplierItem } from '../types';
 
@@ -46,9 +46,24 @@ export function SupplierPickerSheet({
   const debouncedSearch = useDebounce(search.trim(), 350);
   const snapPoints = useMemo(() => ['100%'], []);
 
-  const { data: suppliers = [], isLoading } = useSuppliers(
-    debouncedSearch || undefined,
+  const {
+    data,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteSuppliers(debouncedSearch || undefined);
+
+  const suppliers = useMemo(
+    () => data?.pages.flatMap((page) => page.items) ?? [],
+    [data],
   );
+
+  const handleLoadMore = () => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  };
 
   const trimmedSearch = search.trim();
   const exactMatchExists = suppliers.some(
@@ -192,6 +207,15 @@ export function SupplierPickerSheet({
                   </TouchableOpacity>
                 );
               }}
+              onEndReached={handleLoadMore}
+              onEndReachedThreshold={0.4}
+              ListFooterComponent={
+                isFetchingNextPage ? (
+                  <View style={inventoryStyles.listFooterLoader}>
+                    <IosLoader size={20} color={colors.primary} />
+                  </View>
+                ) : undefined
+              }
               ListEmptyComponent={
                 <Text style={styles.emptyText}>
                   No suppliers found. Type a name above to add one.

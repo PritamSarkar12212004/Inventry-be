@@ -26,6 +26,13 @@ export type InventoryItem = {
   stockStatus: StockStatus;
 };
 
+export type PaginationMeta = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};
+
 export type InventoryListResponse = {
   success: boolean;
   message?: string;
@@ -33,6 +40,7 @@ export type InventoryListResponse = {
     items?: InventoryItem[];
     records?: InventoryItem[];
     total?: number;
+    pagination?: PaginationMeta;
   };
 };
 
