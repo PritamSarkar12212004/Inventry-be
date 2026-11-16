@@ -28,7 +28,7 @@ export type VerifyOtpData = {
 
 export type UpdateProfilePayload = {
   name: string;
-  email?: string;
+  email: string;
 };
 
 export type BusinessSettingsData = {
@@ -39,5 +39,5 @@ export type BusinessSettingsData = {
 
 export type UpdateBusinessPayload = {
   businessName: string;
-  email?: string;
+  email: string;
 };

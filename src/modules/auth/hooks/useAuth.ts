@@ -84,7 +84,7 @@ export function useBusinessSettings() {
 
 export type SaveProfileInput = {
   companyName: string;
-  email?: string;
+  email: string;
   localLogoUri?: string | null;
 };
 
@@ -124,7 +124,10 @@ export function useLogout() {
     mutationFn: () => authApi.logout(),
     onSettled: async () => {
       authLogger.info('logout:complete');
-      await secureStorage.clearTokens();
+      await Promise.all([
+        secureStorage.clearTokens(),
+        secureStorage.setProfileCompleted(false),
+      ]);
       queryClient.clear();
       authStore.logout();
     },

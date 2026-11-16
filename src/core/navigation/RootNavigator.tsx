@@ -25,7 +25,7 @@ const GrnFormScreen = () => <PlaceholderScreen title="Create / Confirm GRN" />;
 const DamageFormScreen = () => <PlaceholderScreen title="Report Damage" />;
 
 export default function RootNavigator() {
-  const { isAuthenticated, isHydrating } = useAuthStore();
+  const { isAuthenticated, isProfileCompleted, isHydrating } = useAuthStore();
 
   useEffect(() => {
     authStore.hydrate();
@@ -55,13 +55,14 @@ export default function RootNavigator() {
             component={AuthStack}
             options={{ headerShown: false }}
           />
+        ) : !isProfileCompleted ? (
+          <RootStack.Screen
+            name="Profile"
+            component={ProfileScreen}
+            options={{ headerShown: false }}
+          />
         ) : (
           <>
-            <RootStack.Screen
-              name="Profile"
-              component={ProfileScreen}
-              options={{ title: 'Business Profile' }}
-            />
             <RootStack.Screen
               name="Main"
               component={MainTabs}

@@ -3,11 +3,13 @@ import { secureStorage } from '../storage/secureStorage';
 
 type AuthState = {
   isAuthenticated: boolean;
+  isProfileCompleted: boolean;
   isHydrating: boolean;
 };
 
 let state: AuthState = {
   isAuthenticated: false,
+  isProfileCompleted: false,
   isHydrating: true,
 };
 
@@ -25,22 +27,43 @@ export const authStore = {
   },
   hydrate: async () => {
     try {
-      const tokens = await secureStorage.getTokens();
+      const [tokens, profileDone] = await Promise.all([
+        secureStorage.getTokens(),
+        secureStorage.isProfileCompleted(),
+      ]);
       state = {
         isAuthenticated: Boolean(tokens?.accessToken),
+        isProfileCompleted: Boolean(tokens?.accessToken) && profileDone,
         isHydrating: false,
       };
     } catch {
-      state = { isAuthenticated: false, isHydrating: false };
+      state = {
+        isAuthenticated: false,
+        isProfileCompleted: false,
+        isHydrating: false,
+      };
     }
     emitChange();
   },
   login: () => {
-    state = { isAuthenticated: true, isHydrating: false };
+    state = { ...state, isAuthenticated: true, isHydrating: false };
+    emitChange();
+  },
+  completeProfile: async () => {
+    await secureStorage.setProfileCompleted(true);
+    state = {
+      isAuthenticated: true,
+      isProfileCompleted: true,
+      isHydrating: false,
+    };
     emitChange();
   },
   logout: () => {
-    state = { isAuthenticated: false, isHydrating: false };
+    state = {
+      isAuthenticated: false,
+      isProfileCompleted: false,
+      isHydrating: false,
+    };
     emitChange();
   },
 };

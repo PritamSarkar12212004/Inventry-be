@@ -3,7 +3,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
@@ -11,20 +10,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Building2, LogOut, Mail, Phone } from 'lucide-react-native';
 import type { AxiosError } from 'axios';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { API_ORIGIN } from '../../../core/api';
-import type { RootStackParamList } from '../../../core/navigation/types';
 import { IosLoader } from '../../../core/components/IosLoader';
+import { authStore } from '../../../core/store/authStore';
 import { popup } from '../../../core/store/popupStore';
+import { colors } from '../../../core/theme';
 import {
-  colors,
-  fontSize,
-  fontWeight,
-  radius,
-  spacing,
-  touchTarget,
-} from '../../../core/theme';
-import { AuthButton, AuthInput, CompanyLogoPicker } from '../components';
+  AuthButton,
+  AuthInput,
+  CompanyLogoPicker,
+  ProfileHeader,
+} from '../components';
 import { AUTH_COPY } from '../data';
 import {
   useBusinessSettings,
@@ -32,11 +28,12 @@ import {
   useMe,
   useSaveProfile,
 } from '../hooks';
+import { profileStyles } from '../styles';
 import type { ApiResponse } from '../types';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
+const EMAIL_REGEX = /^\S+@\S+\.\S+$/;
 
-export function ProfileScreen({ navigation }: Props) {
+export function ProfileScreen() {
   const { data: user, isLoading: isLoadingMe } = useMe();
   const { data: business, isLoading: isLoadingBusiness } = useBusinessSettings();
   const { mutate: saveProfile, isPending: isSaving } = useSaveProfile();
@@ -60,7 +57,8 @@ export function ProfileScreen({ navigation }: Props) {
 
   const isLoadingInitial = isLoadingMe || isLoadingBusiness;
   const isBusy = isSaving || isLoggingOut;
-  const canSave = companyName.trim().length >= 2;
+  const isEmailValid = EMAIL_REGEX.test(email.trim());
+  const canSave = companyName.trim().length >= 2 && isEmailValid;
 
   const handleSelectLogo = (uri: string) => {
     setHasPickedLogo(true);
@@ -70,19 +68,22 @@ export function ProfileScreen({ navigation }: Props) {
   const handleSaveAndContinue = () => {
     if (isBusy) return;
     if (!canSave) {
-      popup.error('Invalid Input', 'Please enter a valid company name.');
+      popup.error(
+        'Invalid Input',
+        'Please enter a valid company name and email address.',
+      );
       return;
     }
 
     saveProfile(
       {
         companyName: companyName.trim(),
-        email: email.trim() || undefined,
+        email: email.trim(),
         localLogoUri: hasPickedLogo ? logoUri : null,
       },
       {
-        onSuccess: () => {
-          navigation.replace('Main');
+        onSuccess: async () => {
+          await authStore.completeProfile();
         },
         onError: (err) => {
           const axiosErr = err as AxiosError<ApiResponse<null>>;
@@ -96,18 +97,23 @@ export function ProfileScreen({ navigation }: Props) {
   };
 
   return (
-    <SafeAreaView style={styles.root} edges={['bottom']}>
+    <SafeAreaView style={profileStyles.root} edges={['bottom']}>
+      <ProfileHeader
+        title={AUTH_COPY.profile.title}
+        subtitle={AUTH_COPY.profile.subtitle}
+      />
+
       <KeyboardAvoidingView
-        style={styles.flex}
+        style={profileStyles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         {isLoadingInitial ? (
-          <View style={styles.loaderBox}>
+          <View style={profileStyles.loaderBox}>
             <IosLoader size={28} color={colors.primary} />
           </View>
         ) : (
           <ScrollView
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={profileStyles.scrollContent}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
@@ -117,7 +123,7 @@ export function ProfileScreen({ navigation }: Props) {
               onSelectLogo={handleSelectLogo}
             />
 
-            <View style={styles.formArea}>
+            <View style={profileStyles.formArea}>
               <AuthInput
                 label={AUTH_COPY.profile.companyNameLabel}
                 value={companyName}
@@ -144,7 +150,7 @@ export function ProfileScreen({ navigation }: Props) {
               />
             </View>
 
-            <View style={styles.bottomActions}>
+            <View style={profileStyles.bottomActions}>
               <AuthButton
                 title={AUTH_COPY.profile.saveLabel}
                 onPress={handleSaveAndContinue}
@@ -153,7 +159,10 @@ export function ProfileScreen({ navigation }: Props) {
               />
 
               <TouchableOpacity
-                style={[styles.logoutBtn, isBusy && styles.disabled]}
+                style={[
+                  profileStyles.logoutBtn,
+                  isBusy && profileStyles.disabled,
+                ]}
                 onPress={() => logout()}
                 disabled={isBusy}
                 activeOpacity={0.8}
@@ -163,7 +172,7 @@ export function ProfileScreen({ navigation }: Props) {
                 ) : (
                   <>
                     <LogOut size={18} color={colors.danger} />
-                    <Text style={styles.logoutText}>
+                    <Text style={profileStyles.logoutText}>
                       {AUTH_COPY.profile.logoutLabel}
                     </Text>
                   </>
@@ -176,49 +185,3 @@ export function ProfileScreen({ navigation }: Props) {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.surface,
-  },
-  flex: {
-    flex: 1,
-  },
-  loaderBox: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    padding: spacing.lg,
-  },
-  formArea: {
-    flex: 1,
-  },
-  bottomActions: {
-    marginTop: 'auto',
-    paddingTop: spacing.xl,
-    gap: spacing.md,
-  },
-  logoutBtn: {
-    minHeight: touchTarget.minHeight,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.dangerBorder,
-    backgroundColor: colors.dangerBg,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  logoutText: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
-    color: colors.danger,
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-});

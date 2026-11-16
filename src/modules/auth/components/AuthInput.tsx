@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import {
-  StyleSheet,
   Text,
   TextInput,
   View,
   type KeyboardTypeOptions,
 } from 'react-native';
-import { colors, fontSize, fontWeight, radius, spacing, touchTarget } from '../../../core/theme';
+import { colors } from '../../../core/theme';
+import { profileStyles } from '../styles';
 
 type AuthInputProps = {
   label: string;
@@ -32,18 +32,23 @@ export function AuthInput({
   const [focused, setFocused] = useState(false);
 
   return (
-    <View style={styles.wrapper}>
-      <Text style={styles.label}>{label}</Text>
+    <View style={profileStyles.inputWrapper}>
+      <Text style={profileStyles.inputLabel}>{label}</Text>
       <View
         style={[
-          styles.inputRow,
-          focused && styles.inputFocused,
-          !editable && styles.inputReadonly,
+          profileStyles.inputRow,
+          focused && profileStyles.inputFocused,
+          !editable && profileStyles.inputReadonly,
         ]}
       >
-        {leftIcon ? <View style={styles.iconBox}>{leftIcon}</View> : null}
+        {leftIcon ? (
+          <View style={profileStyles.inputIconBox}>{leftIcon}</View>
+        ) : null}
         <TextInput
-          style={[styles.input, !editable && styles.readonlyText]}
+          style={[
+            profileStyles.inputField,
+            !editable && profileStyles.readonlyText,
+          ]}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
@@ -58,45 +63,3 @@ export function AuthInput({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  wrapper: {
-    marginBottom: spacing.lg,
-  },
-  label: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: touchTarget.minHeight,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceSubtle,
-    overflow: 'hidden',
-  },
-  inputFocused: {
-    borderColor: colors.primary,
-    backgroundColor: colors.surface,
-  },
-  inputReadonly: {
-    backgroundColor: colors.surfacePressed,
-  },
-  iconBox: {
-    paddingLeft: spacing.md,
-  },
-  input: {
-    flex: 1,
-    paddingHorizontal: spacing.md,
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
-    color: colors.textPrimary,
-  },
-  readonlyText: {
-    color: colors.textSecondary,
-  },
-});
