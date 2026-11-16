@@ -48,7 +48,14 @@ export type RootStackParamList = {
   Main: undefined;
   ProductDetail: { productId: string };
   ProductForm: { productId?: string } | undefined;
-  StockEntryForm: undefined;
+  StockEntryForm:
+    | {
+        productId?: string;
+        productName?: string;
+        currentStock?: number;
+        unit?: string;
+      }
+    | undefined;
   InvoiceDetail: { invoiceId: string };
   GrnForm: { poId?: string } | undefined;
   DamageForm: undefined;

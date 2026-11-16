@@ -20,6 +20,7 @@ import { MainHeader } from '../components/MainHeader';
 import { PlaceholderScreen } from './PlaceholderScreen';
 import { MoreStack } from './MoreStack';
 import { colors, fontSize, fontWeight, radius, shadows } from '../theme';
+import { AllStockScreen } from '../../modules/inventory';
 
 const BottomTab = createBottomTabNavigator<MainTabsParamList>();
 const StockTopTab = createMaterialTopTabNavigator<StockTopTabsParamList>();
@@ -65,7 +66,7 @@ function StockTopTabs() {
       <StockTopTab.Screen
         name="AllStock"
         options={{ title: 'All Stock' }}
-        children={() => <PlaceholderScreen title="All Stock & Products" />}
+        component={AllStockScreen}
       />
       <StockTopTab.Screen
         name="LowStock"

@@ -10,14 +10,14 @@ import { IosLoader } from '../components/IosLoader';
 import { colors, fontWeight } from '../theme';
 import { authStore, useAuthStore } from '../store/authStore';
 import { ProfileScreen } from '../../modules/auth';
+import {
+  ProductDetailScreen,
+  ProductFormScreen,
+  StockEntryFormScreen,
+} from '../../modules/inventory';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 
-const ProductDetailScreen = () => <PlaceholderScreen title="Product Detail" />;
-const ProductFormScreen = () => (
-  <PlaceholderScreen title="Add / Edit Product" />
-);
-const StockEntryFormScreen = () => <PlaceholderScreen title="Stock Entry" />;
 const InvoiceDetailScreen = () => (
   <PlaceholderScreen title="Invoice Detail & PDF" />
 );
@@ -76,12 +76,12 @@ export default function RootNavigator() {
             <RootStack.Screen
               name="ProductForm"
               component={ProductFormScreen}
-              options={{ title: 'Product Form', presentation: 'modal' }}
+              options={{ title: 'Edit Product', presentation: 'modal' }}
             />
             <RootStack.Screen
               name="StockEntryForm"
               component={StockEntryFormScreen}
-              options={{ title: 'Stock Entry', presentation: 'modal' }}
+              options={{ title: 'Add Stock', presentation: 'modal' }}
             />
             <RootStack.Screen
               name="InvoiceDetail"

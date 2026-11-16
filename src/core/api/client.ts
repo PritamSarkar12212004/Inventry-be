@@ -3,21 +3,23 @@ import { Platform } from 'react-native';
 import { secureStorage } from '../storage/secureStorage';
 import { authStore } from '../store/authStore';
 
-// Android Emulator uses 10.0.2.2 to reach host localhost; iOS Simulator uses localhost
-export const API_ORIGIN =
-  Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000';
+// With `adb reverse tcp:3000 tcp:3000`, localhost:3000 works on both Emulator & USB phone.
+// If emulator loses adb reverse, we automatically fall back to 10.0.2.2:3000.
+export const API_ORIGIN = 'http://localhost:3000';
+const EMULATOR_FALLBACK_ORIGIN = 'http://10.0.2.2:3000';
 
-const DEV_BASE_URL = `${API_ORIGIN}/api/v1`;
+let activeOrigin = API_ORIGIN;
 
 export const apiClient = axios.create({
-  baseURL: DEV_BASE_URL,
+  baseURL: `${activeOrigin}/api/v1`,
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-apiClient.interceptors.request.use(async config => {
+apiClient.interceptors.request.use(async (config) => {
+  config.baseURL = `${activeOrigin}/api/v1`;
   const tokens = await secureStorage.getTokens();
   if (tokens?.accessToken) {
     config.headers.Authorization = `Bearer ${tokens.accessToken}`;
@@ -25,7 +27,10 @@ apiClient.interceptors.request.use(async config => {
   return config;
 });
 
-type RetryableConfig = InternalAxiosRequestConfig & { _retry?: boolean };
+type RetryableConfig = InternalAxiosRequestConfig & {
+  _retry?: boolean;
+  _fallbackRetry?: boolean;
+};
 
 let refreshPromise: Promise<string | null> | null = null;
 
@@ -34,7 +39,7 @@ async function refreshAccessToken(): Promise<string | null> {
   if (!tokens?.refreshToken) return null;
 
   try {
-    const res = await axios.post(`${DEV_BASE_URL}/auth/refresh`, {
+    const res = await axios.post(`${activeOrigin}/api/v1/auth/refresh`, {
       refreshToken: tokens.refreshToken,
     });
     const newAccessToken: string | undefined = res.data?.data?.accessToken;
@@ -56,9 +61,22 @@ async function refreshAccessToken(): Promise<string | null> {
 }
 
 apiClient.interceptors.response.use(
-  response => response,
+  (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as RetryableConfig | undefined;
+
+    if (
+      Platform.OS === 'android' &&
+      !error.response &&
+      originalRequest &&
+      !originalRequest._fallbackRetry &&
+      activeOrigin !== EMULATOR_FALLBACK_ORIGIN
+    ) {
+      originalRequest._fallbackRetry = true;
+      activeOrigin = EMULATOR_FALLBACK_ORIGIN;
+      originalRequest.baseURL = `${activeOrigin}/api/v1`;
+      return apiClient(originalRequest);
+    }
 
     if (
       error.response?.status === 401 &&
