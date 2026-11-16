@@ -31,4 +31,9 @@ export const AUTH_COPY = {
     resendAction: 'Resend OTP',
     changeNumberLabel: 'Change WhatsApp Number',
   },
+  errors: {
+    invalidPhone: 'Enter a valid 10-digit Indian WhatsApp number.',
+    sendOtpFailed: 'Failed to send OTP. Please try again.',
+    verifyOtpFailed: 'Invalid or expired OTP. Please try again.',
+  },
 } as const;

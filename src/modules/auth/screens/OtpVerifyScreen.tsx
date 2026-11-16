@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -10,13 +10,16 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
+import type { AxiosError } from 'axios';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../../core/navigation/types';
-import { authStore } from '../../../core/store/authStore';
+import { popup } from '../../../core/store/popupStore';
 import { colors } from '../../../core/theme';
 import { AuthButton, AuthHeroHeader, OtpCodeInput } from '../components';
 import { AUTH_COPY } from '../data';
+import { useResendOtp, useVerifyOtp } from '../hooks';
 import { authStyles } from '../styles';
+import type { ApiResponse } from '../types';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'OtpVerify'>;
 
@@ -26,14 +29,10 @@ export function OtpVerifyScreen({ route, navigation }: Props) {
   const { phone } = route.params;
   const [otp, setOtp] = useState('');
   const [secondsLeft, setSecondsLeft] = useState(RESEND_SECONDS);
-  const [isLoading, setIsLoading] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, []);
+  const { mutate: verifyOtp, isPending: isVerifying } = useVerifyOtp();
+  const { mutate: resendOtp, isPending: isResending } = useResendOtp();
+  const isBusy = isVerifying || isResending;
 
   useEffect(() => {
     if (secondsLeft <= 0) return;
@@ -42,17 +41,45 @@ export function OtpVerifyScreen({ route, navigation }: Props) {
   }, [secondsLeft]);
 
   const handleVerify = () => {
-    if (isLoading || otp.length !== 6) return;
-    setIsLoading(true);
-    timerRef.current = setTimeout(() => {
-      setIsLoading(false);
-      authStore.login();
-    }, 1500);
+    if (isBusy || otp.length !== 6) return;
+
+    verifyOtp(
+      { phone, otp },
+      {
+        onError: (err) => {
+          const axiosErr = err as AxiosError<ApiResponse<null>>;
+          popup.error(
+            'Verification Failed',
+            axiosErr.response?.data?.message ||
+              AUTH_COPY.errors.verifyOtpFailed,
+          );
+        },
+      },
+    );
   };
 
   const handleResend = () => {
-    if (secondsLeft > 0) return;
-    setSecondsLeft(RESEND_SECONDS);
+    if (secondsLeft > 0 || isBusy) return;
+
+    resendOtp(
+      { phone },
+      {
+        onSuccess: () => {
+          setSecondsLeft(RESEND_SECONDS);
+          popup.success(
+            'OTP Sent',
+            `A new 6-digit code has been sent to +91 ${phone}.`,
+          );
+        },
+        onError: (err) => {
+          const axiosErr = err as AxiosError<ApiResponse<null>>;
+          popup.error(
+            'Resend Failed',
+            axiosErr.response?.data?.message || AUTH_COPY.errors.sendOtpFailed,
+          );
+        },
+      },
+    );
   };
 
   return (
@@ -83,7 +110,11 @@ export function OtpVerifyScreen({ route, navigation }: Props) {
                   {`${AUTH_COPY.otpVerify.resendPrefix}${secondsLeft}s`}
                 </Text>
               ) : (
-                <TouchableOpacity onPress={handleResend} activeOpacity={0.7}>
+                <TouchableOpacity
+                  onPress={handleResend}
+                  disabled={isBusy}
+                  activeOpacity={0.7}
+                >
                   <Text style={authStyles.resendActionText}>
                     {AUTH_COPY.otpVerify.resendAction}
                   </Text>
@@ -96,14 +127,14 @@ export function OtpVerifyScreen({ route, navigation }: Props) {
             <AuthButton
               title={AUTH_COPY.otpVerify.verifyLabel}
               onPress={handleVerify}
-              disabled={otp.length !== 6}
-              loading={isLoading}
+              disabled={otp.length !== 6 || isResending}
+              loading={isVerifying}
             />
 
             <TouchableOpacity
-              style={[authStyles.backBtn, isLoading && { opacity: 0.5 }]}
+              style={[authStyles.backBtn, isBusy && authStyles.disabled]}
               onPress={() => navigation.goBack()}
-              disabled={isLoading}
+              disabled={isBusy}
               activeOpacity={0.7}
             >
               <ArrowLeft size={16} color={colors.textSecondary} />

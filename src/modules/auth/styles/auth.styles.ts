@@ -4,7 +4,6 @@ import {
   fontSize,
   fontWeight,
   radius,
-  shadows,
   spacing,
   touchTarget,
 } from '../../../core/theme';
@@ -256,5 +255,22 @@ export const authStyles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
     color: colors.textSecondary,
+  },
+  disabled: {
+    opacity: 0.5,
+  },
+  errorBanner: {
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.sm,
+    backgroundColor: colors.dangerBg,
+    borderWidth: 1,
+    borderColor: colors.dangerBorder,
+  },
+  errorText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.medium,
+    color: colors.danger,
   },
 });

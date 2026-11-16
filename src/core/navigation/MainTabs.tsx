@@ -126,6 +126,24 @@ function PurchaseTopTabs() {
   );
 }
 
+type TabIconProps = { color: string; size: number };
+
+const renderHomeIcon = ({ color, size }: TabIconProps) => (
+  <Home color={color} size={size} />
+);
+const renderStockIcon = ({ color, size }: TabIconProps) => (
+  <Package color={color} size={size} />
+);
+const renderSalesIcon = ({ color, size }: TabIconProps) => (
+  <ShoppingCart color={color} size={size} />
+);
+const renderReceiveIcon = ({ color, size }: TabIconProps) => (
+  <Truck color={color} size={size} />
+);
+const renderMoreIcon = ({ color, size }: TabIconProps) => (
+  <LayoutGrid color={color} size={size} />
+);
+
 export function MainTabs() {
   return (
     <BottomTab.Navigator
@@ -154,7 +172,7 @@ export function MainTabs() {
         component={DashboardScreen}
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, size }) => <Home color={color} size={size} />,
+          tabBarIcon: renderHomeIcon,
         }}
       />
       <BottomTab.Screen
@@ -162,7 +180,7 @@ export function MainTabs() {
         component={StockTopTabs}
         options={{
           title: 'Stock',
-          tabBarIcon: ({ color, size }) => <Package color={color} size={size} />,
+          tabBarIcon: renderStockIcon,
         }}
       />
       <BottomTab.Screen
@@ -170,9 +188,7 @@ export function MainTabs() {
         component={SalesTopTabs}
         options={{
           title: 'Sales',
-          tabBarIcon: ({ color, size }) => (
-            <ShoppingCart color={color} size={size} />
-          ),
+          tabBarIcon: renderSalesIcon,
         }}
       />
       <BottomTab.Screen
@@ -180,7 +196,7 @@ export function MainTabs() {
         component={PurchaseTopTabs}
         options={{
           title: 'Receive',
-          tabBarIcon: ({ color, size }) => <Truck color={color} size={size} />,
+          tabBarIcon: renderReceiveIcon,
         }}
       />
       <BottomTab.Screen
@@ -189,9 +205,7 @@ export function MainTabs() {
         options={{
           title: 'More',
           headerShown: false,
-          tabBarIcon: ({ color, size }) => (
-            <LayoutGrid color={color} size={size} />
-          ),
+          tabBarIcon: renderMoreIcon,
         }}
       />
     </BottomTab.Navigator>
