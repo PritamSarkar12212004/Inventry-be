@@ -4,10 +4,10 @@ import { secureStorage } from '../storage/secureStorage';
 import { authStore } from '../store/authStore';
 
 // Android Emulator uses 10.0.2.2 to reach host localhost; iOS Simulator uses localhost
-const DEV_BASE_URL =
-  Platform.OS === 'android'
-    ? 'http://10.0.2.2:3000/api/v1'
-    : 'http://localhost:3000/api/v1';
+export const API_ORIGIN =
+  Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000';
+
+const DEV_BASE_URL = `${API_ORIGIN}/api/v1`;
 
 export const apiClient = axios.create({
   baseURL: DEV_BASE_URL,

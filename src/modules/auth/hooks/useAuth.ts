@@ -7,6 +7,7 @@ import type { SendOtpPayload, VerifyOtpPayload } from '../types';
 
 export const AUTH_QUERY_KEYS = {
   me: ['auth', 'me'] as const,
+  businessSettings: ['auth', 'businessSettings'] as const,
 };
 
 export function useSendOtp() {
@@ -64,6 +65,55 @@ export function useMe() {
       return res.data;
     },
     enabled: isAuthenticated,
+  });
+}
+
+export function useBusinessSettings() {
+  const { isAuthenticated } = useAuthStore();
+
+  return useQuery({
+    queryKey: AUTH_QUERY_KEYS.businessSettings,
+    queryFn: async () => {
+      const res = await authApi.getBusinessSettings();
+      authLogger.info('getBusinessSettings:success', res);
+      return res.data;
+    },
+    enabled: isAuthenticated,
+  });
+}
+
+export type SaveProfileInput = {
+  companyName: string;
+  email?: string;
+  localLogoUri?: string | null;
+};
+
+export function useSaveProfile() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ companyName, email, localLogoUri }: SaveProfileInput) => {
+      const [profileRes, settingsRes] = await Promise.all([
+        authApi.updateProfile({ name: companyName, email }),
+        authApi.updateBusinessSettings({ businessName: companyName, email }),
+      ]);
+
+      let latestSettings = settingsRes.data;
+      if (localLogoUri && !localLogoUri.startsWith('http')) {
+        const logoRes = await authApi.uploadBusinessLogo(localLogoUri);
+        latestSettings = logoRes.data;
+      }
+
+      return { user: profileRes.data, settings: latestSettings };
+    },
+    onSuccess: (data) => {
+      authLogger.info('saveProfile:success', data);
+      queryClient.setQueryData(AUTH_QUERY_KEYS.me, data.user);
+      queryClient.setQueryData(AUTH_QUERY_KEYS.businessSettings, data.settings);
+    },
+    onError: (err) => {
+      authLogger.error('saveProfile:error', err);
+    },
   });
 }
 

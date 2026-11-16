@@ -1,6 +1,8 @@
 import React from 'react';
+import { StyleSheet, View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Home,
   Package,
@@ -16,18 +18,29 @@ import type {
 } from './types';
 import { PlaceholderScreen } from './PlaceholderScreen';
 import { MoreStack } from './MoreStack';
-import { colors, fontSize, fontWeight } from '../theme';
+import { colors, fontSize, fontWeight, radius, shadows } from '../theme';
 
 const BottomTab = createBottomTabNavigator<MainTabsParamList>();
 const StockTopTab = createMaterialTopTabNavigator<StockTopTabsParamList>();
 const SalesTopTab = createMaterialTopTabNavigator<SalesTopTabsParamList>();
-const PurchaseTopTab = createMaterialTopTabNavigator<PurchaseTopTabsParamList>();
+const PurchaseTopTab =
+  createMaterialTopTabNavigator<PurchaseTopTabsParamList>();
 
 const topTabScreenOptions = {
   tabBarActiveTintColor: colors.primary,
   tabBarInactiveTintColor: colors.textSecondary,
-  tabBarIndicatorStyle: { backgroundColor: colors.primary, height: 2.5 },
-  tabBarStyle: { backgroundColor: colors.surface, elevation: 0 },
+  tabBarIndicatorStyle: {
+    backgroundColor: colors.primary,
+    height: 3,
+    borderTopLeftRadius: 3,
+    borderTopRightRadius: 3,
+  },
+  tabBarStyle: {
+    backgroundColor: colors.surface,
+    elevation: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
+  },
   tabBarLabelStyle: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.semibold,
@@ -39,7 +52,7 @@ const topTabScreenOptions = {
 function DashboardScreen() {
   return (
     <PlaceholderScreen
-      title="Warehouse Dashboard"
+      title="Inventory Dashboard"
       subtitle="KPIs, Quick Actions, Low Stock Alerts"
     />
   );
@@ -110,7 +123,9 @@ function PurchaseTopTabs() {
       <PurchaseTopTab.Screen
         name="GrnList"
         options={{ title: 'GRN' }}
-        children={() => <PlaceholderScreen title="Goods Received Notes (GRN)" />}
+        children={() => (
+          <PlaceholderScreen title="Goods Received Notes (GRN)" />
+        )}
       />
       <PurchaseTopTab.Screen
         name="PurchaseReturns"
@@ -126,44 +141,88 @@ function PurchaseTopTabs() {
   );
 }
 
-type TabIconProps = { color: string; size: number };
+type TabIconProps = { focused: boolean; color: string; size: number };
 
-const renderHomeIcon = ({ color, size }: TabIconProps) => (
-  <Home color={color} size={size} />
+function TabIconBadge({
+  focused,
+  children,
+}: {
+  focused: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={[styles.iconPill, focused && styles.iconPillActive]}>
+      {children}
+    </View>
+  );
+}
+
+const renderHomeIcon = ({ focused, color, size }: TabIconProps) => (
+  <TabIconBadge focused={focused}>
+    <Home color={color} size={size - 2} strokeWidth={focused ? 2.3 : 1.8} />
+  </TabIconBadge>
 );
-const renderStockIcon = ({ color, size }: TabIconProps) => (
-  <Package color={color} size={size} />
+const renderStockIcon = ({ focused, color, size }: TabIconProps) => (
+  <TabIconBadge focused={focused}>
+    <Package color={color} size={size - 2} strokeWidth={focused ? 2.3 : 1.8} />
+  </TabIconBadge>
 );
-const renderSalesIcon = ({ color, size }: TabIconProps) => (
-  <ShoppingCart color={color} size={size} />
+const renderSalesIcon = ({ focused, color, size }: TabIconProps) => (
+  <TabIconBadge focused={focused}>
+    <ShoppingCart
+      color={color}
+      size={size - 2}
+      strokeWidth={focused ? 2.3 : 1.8}
+    />
+  </TabIconBadge>
 );
-const renderReceiveIcon = ({ color, size }: TabIconProps) => (
-  <Truck color={color} size={size} />
+const renderReceiveIcon = ({ focused, color, size }: TabIconProps) => (
+  <TabIconBadge focused={focused}>
+    <Truck color={color} size={size - 2} strokeWidth={focused ? 2.3 : 1.8} />
+  </TabIconBadge>
 );
-const renderMoreIcon = ({ color, size }: TabIconProps) => (
-  <LayoutGrid color={color} size={size} />
+const renderMoreIcon = ({ focused, color, size }: TabIconProps) => (
+  <TabIconBadge focused={focused}>
+    <LayoutGrid
+      color={color}
+      size={size - 2}
+      strokeWidth={focused ? 2.3 : 1.8}
+    />
+  </TabIconBadge>
 );
 
 export function MainTabs() {
+  const insets = useSafeAreaInsets();
+  const bottomPad = Math.max(insets.bottom, 10);
+
   return (
     <BottomTab.Navigator
       screenOptions={{
         headerStyle: { backgroundColor: colors.surface },
         headerTintColor: colors.textPrimary,
-        headerTitleStyle: { fontWeight: fontWeight.bold },
+        headerTitleStyle: {
+          fontWeight: fontWeight.bold,
+          fontSize: fontSize.lg,
+        },
         headerShadowVisible: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
           backgroundColor: colors.surface,
-          borderTopColor: colors.border,
-          height: 62,
-          paddingBottom: 8,
-          paddingTop: 6,
+          borderTopWidth: 1,
+          borderTopColor: colors.borderSubtle,
+          height: 58 + bottomPad,
+          paddingBottom: bottomPad,
+          paddingTop: 8,
+          ...shadows.card,
+        },
+        tabBarItemStyle: {
+          paddingVertical: 2,
         },
         tabBarLabelStyle: {
           fontSize: fontSize.xs,
           fontWeight: fontWeight.semibold,
+          marginTop: 2,
         },
       }}
     >
@@ -211,3 +270,12 @@ export function MainTabs() {
     </BottomTab.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  iconPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+  },
+  iconPillActive: {},
+});

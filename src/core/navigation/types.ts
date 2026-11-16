@@ -44,6 +44,7 @@ export type MainTabsParamList = {
 
 export type RootStackParamList = {
   Auth: undefined;
+  Profile: undefined;
   Main: undefined;
   ProductDetail: { productId: string };
   ProductForm: { productId?: string } | undefined;

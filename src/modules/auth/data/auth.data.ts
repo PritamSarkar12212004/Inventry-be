@@ -31,6 +31,18 @@ export const AUTH_COPY = {
     resendAction: 'Resend OTP',
     changeNumberLabel: 'Change WhatsApp Number',
   },
+  profile: {
+    title: 'Business Profile',
+    subtitle: 'Set up your company details to continue',
+    logoHint: 'Tap to upload company logo',
+    companyNameLabel: 'Company Name',
+    companyNamePlaceholder: 'Enter company name',
+    emailLabel: 'Email Address',
+    emailPlaceholder: 'company@example.com',
+    phoneLabel: 'Verified WhatsApp Number',
+    saveLabel: 'Save & Continue',
+    logoutLabel: 'Logout',
+  },
   errors: {
     invalidPhone: 'Enter a valid 10-digit Indian WhatsApp number.',
     sendOtpFailed: 'Failed to send OTP. Please try again.',

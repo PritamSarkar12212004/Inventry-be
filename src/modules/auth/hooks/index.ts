@@ -4,5 +4,7 @@ export {
   useResendOtp,
   useVerifyOtp,
   useMe,
+  useBusinessSettings,
+  useSaveProfile,
   useLogout,
 } from './useAuth';

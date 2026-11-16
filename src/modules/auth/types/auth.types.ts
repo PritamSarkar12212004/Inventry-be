@@ -14,14 +14,30 @@ export type VerifyOtpPayload = {
 };
 
 export type AuthUser = {
-  _id: string;
+  id: string;
+  name: string;
   phone: string;
-  name?: string;
-  role?: string;
+  email: string | null;
 };
 
 export type VerifyOtpData = {
   accessToken: string;
   refreshToken: string;
   user: AuthUser;
+};
+
+export type UpdateProfilePayload = {
+  name: string;
+  email?: string;
+};
+
+export type BusinessSettingsData = {
+  businessName: string;
+  email?: string | null;
+  logoUrl?: string | null;
+};
+
+export type UpdateBusinessPayload = {
+  businessName: string;
+  email?: string;
 };

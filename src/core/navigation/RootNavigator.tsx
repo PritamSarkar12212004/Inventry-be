@@ -1,12 +1,15 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { RootStackParamList } from './types';
 import { AuthStack } from './AuthStack';
 import { MainTabs } from './MainTabs';
 import { PlaceholderScreen } from './PlaceholderScreen';
+import { IosLoader } from '../components/IosLoader';
 import { colors, fontWeight } from '../theme';
-import { useAuthStore } from '../store/authStore';
+import { authStore, useAuthStore } from '../store/authStore';
+import { ProfileScreen } from '../../modules/auth';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 
@@ -22,7 +25,19 @@ const GrnFormScreen = () => <PlaceholderScreen title="Create / Confirm GRN" />;
 const DamageFormScreen = () => <PlaceholderScreen title="Report Damage" />;
 
 export default function RootNavigator() {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, isHydrating } = useAuthStore();
+
+  useEffect(() => {
+    authStore.hydrate();
+  }, []);
+
+  if (isHydrating) {
+    return (
+      <View style={styles.splash}>
+        <IosLoader size={30} color={colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <NavigationContainer>
@@ -42,6 +57,11 @@ export default function RootNavigator() {
           />
         ) : (
           <>
+            <RootStack.Screen
+              name="Profile"
+              component={ProfileScreen}
+              options={{ title: 'Business Profile' }}
+            />
             <RootStack.Screen
               name="Main"
               component={MainTabs}
@@ -83,3 +103,12 @@ export default function RootNavigator() {
     </NavigationContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  splash: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+  },
+});

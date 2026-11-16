@@ -5,4 +5,7 @@ export const AUTH_PATHS = {
   refresh: '/auth/refresh',
   logout: '/auth/logout',
   me: '/auth/me',
+  profile: '/auth/profile',
+  businessSettings: '/settings',
+  businessLogo: '/settings/logo',
 } as const;

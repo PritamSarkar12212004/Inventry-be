@@ -1,11 +1,14 @@
 import { useSyncExternalStore } from 'react';
+import { secureStorage } from '../storage/secureStorage';
 
 type AuthState = {
   isAuthenticated: boolean;
+  isHydrating: boolean;
 };
 
 let state: AuthState = {
   isAuthenticated: false,
+  isHydrating: true,
 };
 
 const listeners = new Set<() => void>();
@@ -20,12 +23,24 @@ export const authStore = {
     listeners.add(listener);
     return () => listeners.delete(listener);
   },
+  hydrate: async () => {
+    try {
+      const tokens = await secureStorage.getTokens();
+      state = {
+        isAuthenticated: Boolean(tokens?.accessToken),
+        isHydrating: false,
+      };
+    } catch {
+      state = { isAuthenticated: false, isHydrating: false };
+    }
+    emitChange();
+  },
   login: () => {
-    state = { isAuthenticated: true };
+    state = { isAuthenticated: true, isHydrating: false };
     emitChange();
   },
   logout: () => {
-    state = { isAuthenticated: false };
+    state = { isAuthenticated: false, isHydrating: false };
     emitChange();
   },
 };

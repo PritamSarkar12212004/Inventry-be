@@ -1,9 +1,12 @@
-import { apiGet, apiPost } from '../../../core/api';
+import { apiGet, apiPatch, apiPost } from '../../../core/api';
 import { AUTH_PATHS } from '../constants';
 import type {
   ApiResponse,
   AuthUser,
+  BusinessSettingsData,
   SendOtpPayload,
+  UpdateBusinessPayload,
+  UpdateProfilePayload,
   VerifyOtpData,
   VerifyOtpPayload,
 } from '../types';
@@ -24,4 +27,40 @@ export const authApi = {
   logout: () => apiPost<ApiResponse<null>>(AUTH_PATHS.logout),
 
   getMe: () => apiGet<ApiResponse<AuthUser>>(AUTH_PATHS.me),
+
+  updateProfile: (payload: UpdateProfilePayload) =>
+    apiPatch<ApiResponse<AuthUser>, UpdateProfilePayload>(
+      AUTH_PATHS.profile,
+      payload,
+    ),
+
+  getBusinessSettings: () =>
+    apiGet<ApiResponse<BusinessSettingsData>>(AUTH_PATHS.businessSettings),
+
+  updateBusinessSettings: (payload: UpdateBusinessPayload) =>
+    apiPatch<ApiResponse<BusinessSettingsData>, UpdateBusinessPayload>(
+      AUTH_PATHS.businessSettings,
+      payload,
+    ),
+
+  uploadBusinessLogo: (logoUri: string) => {
+    const formData = new FormData();
+    const filename = logoUri.split('/').pop() || 'logo.jpg';
+    const ext = filename.split('.').pop()?.toLowerCase();
+    const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
+
+    formData.append('logo', {
+      uri: logoUri,
+      name: filename,
+      type: mime,
+    } as unknown as Blob);
+
+    return apiPost<ApiResponse<BusinessSettingsData>, FormData>(
+      AUTH_PATHS.businessLogo,
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      },
+    );
+  },
 };
