@@ -6,6 +6,7 @@ import { AuthStack } from './AuthStack';
 import { MainTabs } from './MainTabs';
 import { PlaceholderScreen } from './PlaceholderScreen';
 import { colors, fontWeight } from '../theme';
+import { useAuthStore } from '../store/authStore';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 
@@ -21,7 +22,7 @@ const GrnFormScreen = () => <PlaceholderScreen title="Create / Confirm GRN" />;
 const DamageFormScreen = () => <PlaceholderScreen title="Report Damage" />;
 
 export default function RootNavigator() {
-  const isAuthenticated = false;
+  const { isAuthenticated } = useAuthStore();
 
   return (
     <NavigationContainer>

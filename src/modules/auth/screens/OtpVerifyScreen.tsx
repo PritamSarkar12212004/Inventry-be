@@ -1,124 +1,121 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StatusBar,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ArrowLeft } from 'lucide-react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../../core/navigation/types';
-import {
-  colors,
-  commonStyles,
-  fontSize,
-  fontWeight,
-  radius,
-  spacing,
-  touchTarget,
-} from '../../../core/theme';
+import { authStore } from '../../../core/store/authStore';
+import { colors } from '../../../core/theme';
+import { AuthButton, AuthHeroHeader, OtpCodeInput } from '../components';
+import { AUTH_COPY } from '../data';
+import { authStyles } from '../styles';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'OtpVerify'>;
+
+const RESEND_SECONDS = 30;
 
 export function OtpVerifyScreen({ route, navigation }: Props) {
   const { phone } = route.params;
   const [otp, setOtp] = useState('');
+  const [secondsLeft, setSecondsLeft] = useState(RESEND_SECONDS);
+  const [isLoading, setIsLoading] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleVerifyOtp = () => {
-    if (otp.trim().length !== 6) {
-      return;
-    }
-    // TODO: Connect POST /api/v1/auth/verify-otp
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (secondsLeft <= 0) return;
+    const timer = setTimeout(() => setSecondsLeft((prev) => prev - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [secondsLeft]);
+
+  const handleVerify = () => {
+    if (isLoading || otp.length !== 6) return;
+    setIsLoading(true);
+    timerRef.current = setTimeout(() => {
+      setIsLoading(false);
+      authStore.login();
+    }, 1500);
+  };
+
+  const handleResend = () => {
+    if (secondsLeft > 0) return;
+    setSecondsLeft(RESEND_SECONDS);
   };
 
   return (
-    <SafeAreaView style={commonStyles.screen} edges={['top', 'bottom']}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Verify OTP</Text>
-          <Text style={styles.subtitle}>
-            6-digit OTP bheja gaya hai: {phone}
-          </Text>
-        </View>
+    <View style={authStyles.root}>
+      <StatusBar barStyle="dark-content" />
 
-        <View style={commonStyles.card}>
-          <Text style={styles.label}>Enter OTP</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="000000"
-            placeholderTextColor={colors.textMuted}
-            keyboardType="number-pad"
-            maxLength={6}
-            value={otp}
-            onChangeText={setOtp}
-          />
+      <AuthHeroHeader
+        title={AUTH_COPY.otpVerify.heroTitle}
+        subtitle={`${AUTH_COPY.otpVerify.heroSubtitlePrefix}${phone}`}
+      />
 
-          <TouchableOpacity
-            style={[
-              commonStyles.primaryButton,
-              otp.trim().length !== 6 && styles.disabledBtn,
-            ]}
-            onPress={handleVerifyOtp}
-            disabled={otp.trim().length !== 6}
-          >
-            <Text style={commonStyles.primaryButtonText}>Verify & Login</Text>
-          </TouchableOpacity>
+      <KeyboardAvoidingView
+        style={authStyles.sheetWrapper}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={authStyles.sheetScroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={authStyles.formArea}>
+            <Text style={authStyles.label}>{AUTH_COPY.otpVerify.codeLabel}</Text>
+            <OtpCodeInput code={otp} onChangeCode={setOtp} />
 
-          <TouchableOpacity
-            style={styles.backLink}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.backText}>Change Phone Number</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </SafeAreaView>
+            <View style={authStyles.resendRow}>
+              {secondsLeft > 0 ? (
+                <Text style={authStyles.resendTimerText}>
+                  {`${AUTH_COPY.otpVerify.resendPrefix}${secondsLeft}s`}
+                </Text>
+              ) : (
+                <TouchableOpacity onPress={handleResend} activeOpacity={0.7}>
+                  <Text style={authStyles.resendActionText}>
+                    {AUTH_COPY.otpVerify.resendAction}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          <SafeAreaView edges={['bottom']} style={authStyles.bottomArea}>
+            <AuthButton
+              title={AUTH_COPY.otpVerify.verifyLabel}
+              onPress={handleVerify}
+              disabled={otp.length !== 6}
+              loading={isLoading}
+            />
+
+            <TouchableOpacity
+              style={[authStyles.backBtn, isLoading && { opacity: 0.5 }]}
+              onPress={() => navigation.goBack()}
+              disabled={isLoading}
+              activeOpacity={0.7}
+            >
+              <ArrowLeft size={16} color={colors.textSecondary} />
+              <Text style={authStyles.backBtnText}>
+                {AUTH_COPY.otpVerify.changeNumberLabel}
+              </Text>
+            </TouchableOpacity>
+
+            <Text style={authStyles.footerText}>{AUTH_COPY.footerNote}</Text>
+          </SafeAreaView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: spacing.xl,
-  },
-  header: {
-    marginBottom: spacing.xxl,
-  },
-  title: {
-    fontSize: fontSize.xxl,
-    fontWeight: fontWeight.bold,
-    color: colors.textPrimary,
-    marginBottom: spacing.xs,
-  },
-  subtitle: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-  },
-  label: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-  },
-  input: {
-    minHeight: touchTarget.minHeight,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    fontSize: fontSize.lg,
-    letterSpacing: 6,
-    textAlign: 'center',
-    color: colors.textPrimary,
-    backgroundColor: colors.surfaceSubtle,
-    marginBottom: spacing.lg,
-  },
-  disabledBtn: {
-    opacity: 0.5,
-  },
-  backLink: {
-    marginTop: spacing.lg,
-    alignItems: 'center',
-  },
-  backText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-    color: colors.primary,
-  },
-});
