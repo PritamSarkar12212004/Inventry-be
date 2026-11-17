@@ -21,6 +21,7 @@ import { PlaceholderScreen } from './PlaceholderScreen';
 import { MoreStack } from './MoreStack';
 import { colors, fontSize, fontWeight, radius, shadows } from '../theme';
 import { AllStockScreen, LowStockScreen } from '../../modules/inventory';
+import { CustomersScreen, SalesOrdersScreen } from '../../modules/orders';
 
 const BottomTab = createBottomTabNavigator<MainTabsParamList>();
 const StockTopTab = createMaterialTopTabNavigator<StockTopTabsParamList>();
@@ -84,26 +85,21 @@ function StockTopTabs() {
 
 function SalesTopTabs() {
   return (
-    <SalesTopTab.Navigator screenOptions={topTabScreenOptions}>
+    <SalesTopTab.Navigator
+      screenOptions={{
+        ...topTabScreenOptions,
+        tabBarScrollEnabled: false,
+      }}
+    >
       <SalesTopTab.Screen
         name="SalesOrders"
         options={{ title: 'Orders' }}
-        children={() => <PlaceholderScreen title="Sales Orders" />}
-      />
-      <SalesTopTab.Screen
-        name="Dispatches"
-        options={{ title: 'Dispatches' }}
-        children={() => <PlaceholderScreen title="Dispatches" />}
-      />
-      <SalesTopTab.Screen
-        name="Invoices"
-        options={{ title: 'Invoices' }}
-        children={() => <PlaceholderScreen title="GST / Non-GST Invoices" />}
+        component={SalesOrdersScreen}
       />
       <SalesTopTab.Screen
         name="Customers"
         options={{ title: 'Customers' }}
-        children={() => <PlaceholderScreen title="Customers" />}
+        component={CustomersScreen}
       />
     </SalesTopTab.Navigator>
   );

@@ -15,6 +15,10 @@ import {
   ProductFormScreen,
   StockEntryFormScreen,
 } from '../../modules/inventory';
+import {
+  SalesOrderDetailScreen,
+  SalesOrderFormScreen,
+} from '../../modules/orders';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 
@@ -77,6 +81,16 @@ export default function RootNavigator() {
               name="ProductForm"
               component={ProductFormScreen}
               options={{ title: 'Edit Product', presentation: 'modal' }}
+            />
+            <RootStack.Screen
+              name="SalesOrderDetail"
+              component={SalesOrderDetailScreen}
+              options={{ title: 'Order & Invoice' }}
+            />
+            <RootStack.Screen
+              name="SalesOrderForm"
+              component={SalesOrderFormScreen}
+              options={{ title: 'New Sale', presentation: 'modal' }}
             />
             <RootStack.Screen
               name="StockEntryForm"

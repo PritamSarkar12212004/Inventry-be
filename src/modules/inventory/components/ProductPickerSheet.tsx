@@ -33,9 +33,12 @@ import { inventoryStyles } from '../styles';
 import type { InventoryItem, ProductImageItem } from '../types';
 
 type ProductPickerSheetProps = {
-  selectedId: string;
+  selectedId?: string;
   selectedName: string;
-  onSelectProduct: (item: InventoryItem) => void;
+  onSelectProduct?: (item: InventoryItem) => void;
+  multiSelect?: boolean;
+  selectedIds?: string[];
+  onSelectMultiple?: (items: InventoryItem[]) => void;
 };
 
 function getThumbUri(images: ProductImageItem[]): string | null {
@@ -48,13 +51,20 @@ function getThumbUri(images: ProductImageItem[]): string | null {
 }
 
 export function ProductPickerSheet({
-  selectedId,
+  selectedId = '',
   selectedName,
   onSelectProduct,
+  multiSelect = false,
+  selectedIds = [],
+  onSelectMultiple,
 }: ProductPickerSheetProps) {
   const sheetRef = useRef<BottomSheetModal>(null);
   const insets = useSafeAreaInsets();
   const [search, setSearch] = useState('');
+  const [draftIds, setDraftIds] = useState<string[]>([]);
+  const [draftItemsMap, setDraftItemsMap] = useState<
+    Record<string, InventoryItem>
+  >({});
   const debouncedSearch = useDebounce(search.trim(), 350);
 
   const snapPoints = useMemo(() => ['100%'], []);
@@ -84,6 +94,16 @@ export function ProductPickerSheet({
 
   const handleOpen = () => {
     Keyboard.dismiss();
+    if (multiSelect) {
+      setDraftIds(selectedIds);
+      const initialMap: Record<string, InventoryItem> = {};
+      for (const p of products) {
+        if (selectedIds.includes(p.productId)) {
+          initialMap[p.productId] = p;
+        }
+      }
+      setDraftItemsMap((prev) => ({ ...prev, ...initialMap }));
+    }
     sheetRef.current?.present();
   };
 
@@ -93,7 +113,26 @@ export function ProductPickerSheet({
   };
 
   const handleSelect = (item: InventoryItem) => {
-    onSelectProduct(item);
+    if (multiSelect) {
+      setDraftItemsMap((prev) => ({ ...prev, [item.productId]: item }));
+      setDraftIds((prev) =>
+        prev.includes(item.productId)
+          ? prev.filter((id) => id !== item.productId)
+          : [...prev, item.productId],
+      );
+      return;
+    }
+
+    onSelectProduct?.(item);
+    setSearch('');
+    handleClose();
+  };
+
+  const handleConfirmMultiple = () => {
+    const selectedItems = draftIds
+      .map((id) => draftItemsMap[id] ?? products.find((p) => p.productId === id))
+      .filter((item): item is InventoryItem => Boolean(item));
+    onSelectMultiple?.(selectedItems);
     setSearch('');
     handleClose();
   };
@@ -175,12 +214,20 @@ export function ProductPickerSheet({
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={styles.listContent}
               renderItem={({ item }: { item: InventoryItem }) => {
-                const isSelected = item.productId === selectedId;
+                const isOutOfStock =
+                  multiSelect && Number(item.currentStock || 0) <= 0;
+                const isSelected = multiSelect
+                  ? draftIds.includes(item.productId)
+                  : item.productId === selectedId;
                 const thumbUri = getThumbUri(item.images);
 
                 return (
                   <TouchableOpacity
-                    style={styles.itemRow}
+                    style={[
+                      styles.itemRow,
+                      isOutOfStock && styles.itemRowDisabled,
+                    ]}
+                    disabled={isOutOfStock}
                     onPress={() => handleSelect(item)}
                   >
                     <View style={styles.thumbBox}>
@@ -210,7 +257,11 @@ export function ProductPickerSheet({
                       </Text>
                     </View>
 
-                    {isSelected ? (
+                    {isOutOfStock ? (
+                      <View style={styles.outOfStockBadge}>
+                        <Text style={styles.outOfStockText}>Out of Stock</Text>
+                      </View>
+                    ) : isSelected ? (
                       <Check size={18} color={colors.primary} />
                     ) : null}
                   </TouchableOpacity>
@@ -230,6 +281,20 @@ export function ProductPickerSheet({
               }
             />
           )}
+
+          {multiSelect ? (
+            <View style={styles.multiFooter}>
+              <TouchableOpacity
+                style={styles.doneBtn}
+                activeOpacity={0.85}
+                onPress={handleConfirmMultiple}
+              >
+                <Text style={styles.doneBtnText}>
+                  Done ({draftIds.length} Selected)
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
         </View>
       </BottomSheetModal>
     </View>
@@ -331,5 +396,39 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.textMuted,
     paddingVertical: spacing.xl,
+  },
+  multiFooter: {
+    paddingVertical: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
+  },
+  doneBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  doneBtnText: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: colors.textInverse,
+  },
+  itemRowDisabled: {
+    opacity: 0.55,
+  },
+  outOfStockBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+    backgroundColor: colors.dangerBg,
+    borderWidth: 1,
+    borderColor: colors.dangerBorder,
+  },
+  outOfStockText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.danger,
   },
 });

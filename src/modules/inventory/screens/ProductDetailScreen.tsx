@@ -28,9 +28,10 @@ import {
 } from '../components';
 import { useProductDetail, useProductStockEntries } from '../hooks';
 import type { ProductImageItem } from '../types';
+import { useInfiniteSalesOrders } from '../../orders/hooks';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ProductDetail'>;
-type HistoryTab = 'ALL' | 'SELF_MADE' | 'PURCHASED';
+type HistoryTab = 'ALL' | 'SELF_MADE' | 'PURCHASED' | 'SALES';
 
 function resolveAllImages(images: ProductImageItem[] = []): string[] {
   return images
@@ -49,6 +50,13 @@ export function ProductDetailScreen({ route, navigation }: Props) {
   const { data: product, isLoading } = useProductDetail(productId);
   const { data: entries = [], isLoading: isLoadingEntries } =
     useProductStockEntries(productId);
+  const { data: salesPages, isLoading: isLoadingSales } =
+    useInfiniteSalesOrders(undefined, productId);
+
+  const salesOrders = useMemo(
+    () => salesPages?.pages.flatMap((page) => page.items) ?? [],
+    [salesPages],
+  );
 
   const renderEditButton = useCallback(
     () => (
@@ -140,7 +148,7 @@ export function ProductDetailScreen({ route, navigation }: Props) {
         {/* Month-wise & Year-wise Added vs Sold Chart */}
         <ProductStockChart productId={product.id} unit={unit} />
 
-        {/* Tabs: All | In-House | Purchased */}
+        {/* Tabs: All | In-House | Purchased | Sales */}
         <View style={styles.section}>
           <View style={styles.tabsRow}>
             {(
@@ -148,6 +156,7 @@ export function ProductDetailScreen({ route, navigation }: Props) {
                 { key: 'ALL', label: 'All' },
                 { key: 'SELF_MADE', label: 'In-House' },
                 { key: 'PURCHASED', label: 'Purchased' },
+                { key: 'SALES', label: 'Sales' },
               ] as const
             ).map((tab) => {
               const active = activeTab === tab.key;
@@ -167,7 +176,92 @@ export function ProductDetailScreen({ route, navigation }: Props) {
             })}
           </View>
 
-          {isLoadingEntries ? (
+          {activeTab === 'SALES' ? (
+            isLoadingSales ? (
+              <View style={styles.loaderInline}>
+                <IosLoader size={22} color={colors.primary} />
+              </View>
+            ) : salesOrders.length === 0 ? (
+              <Text style={styles.emptyText}>
+                No sales orders found for this product.
+              </Text>
+            ) : (
+              salesOrders.map((order) => {
+                const soldLine = order.items.find(
+                  (i) => String(i.product) === String(product.id),
+                );
+                const hasGst = Boolean(
+                  order.includeGst && Number(order.tax || 0) > 0,
+                );
+                const dateLabel = order.orderDate
+                  ? new Date(order.orderDate).toLocaleDateString('en-IN', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                    })
+                  : '—';
+
+                return (
+                  <TouchableOpacity
+                    key={order._id}
+                    style={styles.saleCard}
+                    activeOpacity={0.8}
+                    onPress={() =>
+                      navigation.navigate('SalesOrderDetail', {
+                        orderId: order._id,
+                      })
+                    }
+                  >
+                    <View style={styles.saleTopRow}>
+                      <Text style={styles.saleOrderNum}>
+                        {order.orderNumber}
+                      </Text>
+                      <View
+                        style={[
+                          styles.saleBadge,
+                          hasGst ? styles.saleGstOn : styles.saleGstOff,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.saleBadgeText,
+                            hasGst
+                              ? styles.saleGstOnText
+                              : styles.saleGstOffText,
+                          ]}
+                        >
+                          {hasGst ? 'GST' : 'No GST'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <Text style={styles.saleCustomer} numberOfLines={1}>
+                      {order.customerSnapshot?.name || 'Walk-In Customer'}
+                    </Text>
+                    <Text style={styles.saleMeta}>
+                      {order.customerSnapshot?.phone || 'No phone'} •{' '}
+                      {dateLabel}
+                    </Text>
+
+                    {soldLine ? (
+                      <View style={styles.saleBottomRow}>
+                        <Text style={styles.saleQtyText}>
+                          Qty: {soldLine.orderedQuantity} {soldLine.unit} × ₹
+                          {soldLine.sellingPrice}
+                        </Text>
+                        <Text style={styles.saleTotalText}>
+                          ₹
+                          {Number(soldLine.lineTotal || 0).toLocaleString(
+                            'en-IN',
+                          )}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </TouchableOpacity>
+                );
+              })
+            )
+          ) : isLoadingEntries ? (
             <View style={styles.loaderInline}>
               <IosLoader size={22} color={colors.primary} />
             </View>
@@ -356,6 +450,77 @@ const styles = StyleSheet.create({
   },
   headerEditText: {
     fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
+  },
+  saleCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  saleTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  saleOrderNum: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  saleBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+    borderWidth: 1,
+  },
+  saleGstOn: {
+    backgroundColor: colors.successBg,
+    borderColor: colors.successBorder,
+  },
+  saleGstOff: {
+    backgroundColor: colors.surfaceSubtle,
+    borderColor: colors.border,
+  },
+  saleBadgeText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+  },
+  saleGstOnText: {
+    color: colors.success,
+  },
+  saleGstOffText: {
+    color: colors.textSecondary,
+  },
+  saleCustomer: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.textPrimary,
+  },
+  saleMeta: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  saleBottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+  },
+  saleQtyText: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+  },
+  saleTotalText: {
+    fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
     color: colors.primary,
   },

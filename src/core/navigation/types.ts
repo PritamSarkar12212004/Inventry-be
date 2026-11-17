@@ -10,8 +10,6 @@ export type StockTopTabsParamList = {
 
 export type SalesTopTabsParamList = {
   SalesOrders: undefined;
-  Dispatches: undefined;
-  Invoices: undefined;
   Customers: undefined;
 };
 
@@ -46,6 +44,8 @@ export type RootStackParamList = {
   Main: undefined;
   ProductDetail: { productId: string };
   ProductForm: { productId?: string } | undefined;
+  SalesOrderDetail: { orderId: string };
+  SalesOrderForm: undefined;
   StockEntryForm:
     | {
         productId?: string;
