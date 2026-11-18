@@ -34,6 +34,7 @@ import {
 } from '../components';
 import { INVENTORY_COPY } from '../data';
 import { useInfiniteInventoryList } from '../hooks';
+import { StockListSkeleton } from '../skeletons';
 import { inventoryStyles } from '../styles';
 import type { InventoryItem, ProductImageItem } from '../types';
 
@@ -285,9 +286,7 @@ export function AllStockScreen() {
       </View>
 
       {isLoading ? (
-        <View style={inventoryStyles.centerBox}>
-          <IosLoader size={28} color={colors.primary} />
-        </View>
+        <StockListSkeleton viewMode={viewMode} />
       ) : viewMode === 'grid' ? (
         <FlatList
           key="grid-view"

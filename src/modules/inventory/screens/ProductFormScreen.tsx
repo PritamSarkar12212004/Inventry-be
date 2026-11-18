@@ -12,10 +12,9 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { API_ORIGIN } from '../../../core/api';
 import type { RootStackParamList } from '../../../core/navigation/types';
 import { IosConfirmModal } from '../../../core/components/IosConfirmModal';
-import { IosLoader } from '../../../core/components/IosLoader';
 import { IosSlideToDelete } from '../../../core/components/IosSlideToDelete';
 import { popup } from '../../../core/store/popupStore';
-import { colors, spacing } from '../../../core/theme';
+import { spacing } from '../../../core/theme';
 import { AuthButton } from '../../auth/components';
 import type { ApiResponse } from '../../auth/types';
 import { NewProductFields } from '../components';
@@ -24,6 +23,7 @@ import {
   useProductDetail,
   useUpdateProductBasicDetails,
 } from '../hooks';
+import { ProductFormSkeleton } from '../skeletons';
 import { inventoryStyles } from '../styles';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ProductForm'>;
@@ -158,11 +158,7 @@ export function ProductFormScreen({ route, navigation }: Props) {
   };
 
   if (isLoading || !initialized) {
-    return (
-      <View style={inventoryStyles.centerBox}>
-        <IosLoader size={28} color={colors.primary} />
-      </View>
-    );
+    return <ProductFormSkeleton />;
   }
 
   return (

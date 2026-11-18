@@ -24,11 +24,14 @@ import {
   X,
 } from 'lucide-react-native';
 import type { RootStackParamList } from '../../../core/navigation/types';
-import { IosLoader } from '../../../core/components/IosLoader';
 import { useDebounce } from '../../../core/hooks/useDebounce';
 import { colors, fontSize, fontWeight, radius, spacing } from '../../../core/theme';
 import { inventoryStyles } from '../../inventory/styles';
 import { useCustomerOutstanding, useFinancialOverview } from '../hooks';
+import {
+  FinancialOverviewSkeleton,
+  PendingCustomersListSkeleton,
+} from '../skeletons';
 import type { CustomerOutstandingItem } from '../types';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
@@ -129,11 +132,7 @@ export function FinancialScreen() {
   };
 
   if (isInitialLoading) {
-    return (
-      <View style={inventoryStyles.centerBox}>
-        <IosLoader size={28} color={colors.primary} />
-      </View>
-    );
+    return <FinancialOverviewSkeleton />;
   }
 
   const listHeader = (
@@ -359,9 +358,7 @@ export function FinancialScreen() {
         ListHeaderComponent={listHeader}
         ListEmptyComponent={
           outstandingLoading ? (
-            <View style={styles.emptyBox}>
-              <IosLoader size={24} color={colors.primary} />
-            </View>
+            <PendingCustomersListSkeleton />
           ) : (
             <View style={styles.emptyBox}>
               <CheckCircle2 size={32} color={colors.success} />

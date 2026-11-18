@@ -12,26 +12,23 @@ import {
 } from 'lucide-react-native';
 import type {
   MainTabsParamList,
-  ProfileTopTabsParamList,
   SalesTopTabsParamList,
   StockTopTabsParamList,
 } from './types';
 import { MainHeader } from '../components/MainHeader';
 import { PlaceholderScreen } from './PlaceholderScreen';
 import { colors, fontSize, fontWeight, radius, shadows } from '../theme';
-import { ProfileScreen } from '../../modules/auth';
+import { ProfileTabScreen } from '../../modules/auth';
 import { AllStockScreen, LowStockScreen } from '../../modules/inventory';
 import { CustomersScreen, SalesOrdersScreen } from '../../modules/orders';
 import {
   FinancialScreen,
   SuppliersPurchasesScreen,
 } from '../../modules/financial';
-import { BusinessSettingsScreen } from '../../modules/settings';
 
 const BottomTab = createBottomTabNavigator<MainTabsParamList>();
 const StockTopTab = createMaterialTopTabNavigator<StockTopTabsParamList>();
 const SalesTopTab = createMaterialTopTabNavigator<SalesTopTabsParamList>();
-const ProfileTopTab = createMaterialTopTabNavigator<ProfileTopTabsParamList>();
 
 const topTabScreenOptions = {
   tabBarActiveTintColor: colors.primary,
@@ -80,7 +77,7 @@ function StockTopTabs() {
       />
       <StockTopTab.Screen
         name="LowStock"
-        options={{ title: 'Low Stock' }}
+        options={{ title: 'Stock Alerts' }}
         component={LowStockScreen}
       />
     </StockTopTab.Navigator>
@@ -111,28 +108,6 @@ function SalesTopTabs() {
         component={SuppliersPurchasesScreen}
       />
     </SalesTopTab.Navigator>
-  );
-}
-
-function ProfileTopTabs() {
-  return (
-    <ProfileTopTab.Navigator
-      screenOptions={{
-        ...topTabScreenOptions,
-        tabBarScrollEnabled: false,
-      }}
-    >
-      <ProfileTopTab.Screen
-        name="UserProfile"
-        options={{ title: 'Profile' }}
-        component={ProfileScreen}
-      />
-      <ProfileTopTab.Screen
-        name="BusinessInvoice"
-        options={{ title: 'Business & Invoice' }}
-        component={BusinessSettingsScreen}
-      />
-    </ProfileTopTab.Navigator>
   );
 }
 
@@ -251,7 +226,7 @@ export function MainTabs() {
       />
       <BottomTab.Screen
         name="MoreTab"
-        component={ProfileTopTabs}
+        component={ProfileTabScreen}
         options={{
           title: 'Profile',
           tabBarIcon: renderProfileIcon,

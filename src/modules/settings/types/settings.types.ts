@@ -11,6 +11,8 @@ export type BusinessSettingData = {
   _id?: string;
   businessName: string;
   proprietorName?: string;
+  paymentQrUrl?: string | null;
+  upiId?: string | null;
   address?: string;
   phone?: string;
   email?: string | null;

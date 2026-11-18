@@ -21,11 +21,6 @@ export type SalesTopTabsParamList = {
   Suppliers: undefined;
 };
 
-export type ProfileTopTabsParamList = {
-  UserProfile: undefined;
-  BusinessInvoice: undefined;
-};
-
 export type PurchaseTopTabsParamList = {
   PurchaseOrders: undefined;
   GrnList: undefined;
@@ -54,6 +49,9 @@ export type MainTabsParamList = {
 export type RootStackParamList = {
   Auth: undefined;
   Profile: undefined;
+  EditProfile: undefined;
+  BusinessSettings: undefined;
+  PaymentQr: undefined;
   Main: undefined;
   ProductDetail: { productId: string };
   ProductForm: { productId?: string } | undefined;

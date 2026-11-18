@@ -22,11 +22,11 @@ import {
   X,
 } from 'lucide-react-native';
 import type { RootStackParamList } from '../../../core/navigation/types';
-import { IosLoader } from '../../../core/components/IosLoader';
 import { useDebounce } from '../../../core/hooks/useDebounce';
 import { colors, fontSize, fontWeight, radius, spacing } from '../../../core/theme';
 import { inventoryStyles } from '../../inventory/styles';
 import { usePurchaseExpenseSummary } from '../hooks';
+import { SuppliersPurchasesSkeleton } from '../skeletons';
 import type {
   ExpenseBreakdownItem,
   SupplierSummaryItem,
@@ -84,11 +84,7 @@ export function SuppliersPurchasesScreen() {
   const allPurchases = useMemo(() => data?.purchases ?? [], [data?.purchases]);
 
   if (isLoading && !data) {
-    return (
-      <View style={inventoryStyles.centerBox}>
-        <IosLoader size={28} color={colors.primary} />
-      </View>
-    );
+    return <SuppliersPurchasesSkeleton />;
   }
 
   const handleOpenAllPurchases = () => {

@@ -10,12 +10,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { AxiosError } from 'axios';
-import { IosLoader } from '../../../core/components/IosLoader';
 import { popup } from '../../../core/store/popupStore';
 import { colors, fontSize, fontWeight, radius, spacing } from '../../../core/theme';
 import { AuthButton } from '../../auth/components';
 import type { ApiResponse } from '../../auth/types';
 import { useBusinessSettings, useUpdateBusinessSettings } from '../hooks';
+import { BusinessSettingsSkeleton } from '../skeletons';
 
 export function BusinessSettingsScreen() {
   const { data: settings, isLoading } = useBusinessSettings();
@@ -105,11 +105,7 @@ export function BusinessSettingsScreen() {
   };
 
   if (isLoading && !settings) {
-    return (
-      <View style={styles.centerBox}>
-        <IosLoader size={28} color={colors.primary} />
-      </View>
-    );
+    return <BusinessSettingsSkeleton />;
   }
 
   return (

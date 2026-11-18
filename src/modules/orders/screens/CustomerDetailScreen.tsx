@@ -30,6 +30,7 @@ import { popup } from '../../../core/store/popupStore';
 import { colors, fontSize, fontWeight, radius, spacing } from '../../../core/theme';
 import { inventoryStyles } from '../../inventory/styles';
 import { useCustomerDetail, useInfiniteSalesOrders } from '../hooks';
+import { SalesOrderListSkeleton } from '../skeletons';
 import type { OrderSortBy, SalesOrderRecord } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CustomerDetail'>;
@@ -291,9 +292,7 @@ export function CustomerDetailScreen({ route, navigation }: Props) {
 
     if (item.kind === 'EMPTY') {
       return isLoading ? (
-        <View style={styles.emptyBox}>
-          <IosLoader size={26} color={colors.primary} />
-        </View>
+        <SalesOrderListSkeleton embedded count={4} />
       ) : (
         <View style={styles.emptyBox}>
           <ShoppingBag size={36} color={colors.textMuted} />

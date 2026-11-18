@@ -38,6 +38,7 @@ import { inventoryStyles } from '../../inventory/styles';
 import { useInfiniteSalesOrders } from '../../orders/hooks';
 import type { OrderSortBy, SalesOrderRecord } from '../../orders/types';
 import { useCustomerOutstanding } from '../hooks';
+import { PendingInvoicesSkeleton } from '../skeletons';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CustomerPendingDetail'>;
 
@@ -395,9 +396,7 @@ export function CustomerPendingDetailScreen({ route, navigation }: Props) {
 
     if (item.kind === 'EMPTY') {
       return isLoading ? (
-        <View style={styles.emptyBox}>
-          <IosLoader size={24} color={colors.primary} />
-        </View>
+        <PendingInvoicesSkeleton />
       ) : (
         <View style={styles.emptyBox}>
           <FileText size={30} color={colors.textMuted} />

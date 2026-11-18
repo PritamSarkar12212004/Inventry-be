@@ -18,6 +18,7 @@ import { colors, fontSize, fontWeight, radius, spacing } from '../../../core/the
 import { StockItemCard } from '../components';
 import { INVENTORY_COPY } from '../data';
 import { useInfiniteInventoryList } from '../hooks';
+import { StockListSkeleton } from '../skeletons';
 import { inventoryStyles } from '../styles';
 
 type AlertFilter = 'LOW_STOCK' | 'OUT_OF_STOCK';
@@ -94,9 +95,7 @@ export function LowStockScreen() {
       </View>
 
       {isLoading ? (
-        <View style={inventoryStyles.centerBox}>
-          <IosLoader size={28} color={colors.primary} />
-        </View>
+        <StockListSkeleton viewMode="list" />
       ) : (
         <FlatList
           data={items}

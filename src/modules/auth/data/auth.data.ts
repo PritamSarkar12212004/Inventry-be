@@ -1,7 +1,6 @@
 export const AUTH_COPY = {
   brandName: 'WishBox Inventory',
   footerNote: 'Authorized Inventory Staff Only',
-  orDivider: 'OR',
   admin: {
     heroTitle: 'Welcome Back',
     heroSubtitle: 'Sign in with your registered WhatsApp number to continue',
@@ -10,17 +9,6 @@ export const AUTH_COPY = {
     phonePlaceholder: '98765 43210',
     phoneHelper: 'A 6-digit verification code will be sent on WhatsApp.',
     submitLabel: 'Continue',
-    switchLabel: 'Sign in as Employee',
-  },
-  employee: {
-    heroTitle: 'Staff Portal',
-    heroSubtitle: 'Enter your employee credentials to access inventory tools',
-    userIdLabel: 'Employee User ID',
-    userIdPlaceholder: 'Enter your user ID',
-    passwordLabel: 'Password',
-    passwordPlaceholder: 'Enter your password',
-    submitLabel: 'Sign In',
-    switchLabel: 'Sign in as Admin',
   },
   otpVerify: {
     heroTitle: 'Verify Code',

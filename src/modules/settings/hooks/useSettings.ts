@@ -25,3 +25,15 @@ export function useUpdateBusinessSettings() {
     },
   });
 }
+
+export function useUploadPaymentQr() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (qrUri: string) => settingsApi.uploadPaymentQr(qrUri),
+    onSuccess: (res) => {
+      queryClient.setQueryData(SETTINGS_QUERY_KEY, res.data);
+      queryClient.invalidateQueries({ queryKey: ['auth', 'business'] });
+    },
+  });
+}

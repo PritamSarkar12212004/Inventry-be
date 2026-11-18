@@ -90,6 +90,8 @@ export type OrderSortBy =
 
 export type CustomerSortBy =
   | 'NEWEST'
+  | 'PAID_DESC'
+  | 'PAID_ASC'
   | 'SPENT_DESC'
   | 'SPENT_ASC'
   | 'ORDERS_DESC'

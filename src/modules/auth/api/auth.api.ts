@@ -13,10 +13,16 @@ import type {
 
 export const authApi = {
   sendOtp: (payload: SendOtpPayload) =>
-    apiPost<ApiResponse<null>, SendOtpPayload>(AUTH_PATHS.sendOtp, payload),
+    apiPost<ApiResponse<{ devOtp?: string } | null>, SendOtpPayload>(
+      AUTH_PATHS.sendOtp,
+      payload,
+    ),
 
   resendOtp: (payload: SendOtpPayload) =>
-    apiPost<ApiResponse<null>, SendOtpPayload>(AUTH_PATHS.resendOtp, payload),
+    apiPost<ApiResponse<{ devOtp?: string } | null>, SendOtpPayload>(
+      AUTH_PATHS.resendOtp,
+      payload,
+    ),
 
   verifyOtp: (payload: VerifyOtpPayload) =>
     apiPost<ApiResponse<VerifyOtpData>, VerifyOtpPayload>(

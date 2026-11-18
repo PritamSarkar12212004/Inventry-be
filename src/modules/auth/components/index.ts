@@ -4,6 +4,4 @@ export { AuthHeroHeader } from './AuthHeroHeader';
 export { CompanyLogoPicker } from './CompanyLogoPicker';
 export { ProfileHeader } from './ProfileHeader';
 export { AdminPhoneForm } from './AdminPhoneForm';
-export { EmployeeLoginForm } from './EmployeeLoginForm';
-export { RoleSwitchButton } from './RoleSwitchButton';
 export { OtpCodeInput } from './OtpCodeInput';

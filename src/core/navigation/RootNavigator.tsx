@@ -11,6 +11,10 @@ import { colors, fontWeight } from '../theme';
 import { authStore, useAuthStore } from '../store/authStore';
 import { ProfileScreen } from '../../modules/auth';
 import {
+  BusinessSettingsScreen,
+  PaymentQrScreen,
+} from '../../modules/settings';
+import {
   ProductDetailScreen,
   ProductFormScreen,
   StockEntryFormScreen,
@@ -121,6 +125,21 @@ export default function RootNavigator() {
               name="SupplierPurchaseDetail"
               component={SupplierPurchaseDetailScreen}
               options={{ title: 'Purchase & Expense Details' }}
+            />
+            <RootStack.Screen
+              name="EditProfile"
+              component={ProfileScreen}
+              options={{ title: 'Edit Profile' }}
+            />
+            <RootStack.Screen
+              name="BusinessSettings"
+              component={BusinessSettingsScreen}
+              options={{ title: 'Business & Invoice Settings' }}
+            />
+            <RootStack.Screen
+              name="PaymentQr"
+              component={PaymentQrScreen}
+              options={{ title: 'Payment & QR Code' }}
             />
             <RootStack.Screen
               name="GrnForm"

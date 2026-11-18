@@ -39,6 +39,7 @@ import {
   useRecordOrderPayment,
   useSalesOrderDetail,
 } from '../hooks';
+import { SalesOrderDetailSkeleton } from '../skeletons';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SalesOrderDetail'>;
 
@@ -167,11 +168,7 @@ export function SalesOrderDetailScreen({ route, navigation }: Props) {
   }, [navigation, renderShareButton]);
 
   if (isLoading || !order) {
-    return (
-      <View style={inventoryStyles.centerBox}>
-        <IosLoader size={28} color={colors.primary} />
-      </View>
-    );
+    return <SalesOrderDetailSkeleton />;
   }
 
   const hasGst = Boolean(order.includeGst && Number(order.tax || 0) > 0);

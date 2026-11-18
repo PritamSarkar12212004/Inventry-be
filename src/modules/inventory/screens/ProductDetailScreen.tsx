@@ -12,7 +12,6 @@ import { Package, Pencil, Plus } from 'lucide-react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { API_ORIGIN } from '../../../core/api';
 import type { RootStackParamList } from '../../../core/navigation/types';
-import { IosLoader } from '../../../core/components/IosLoader';
 import {
   colors,
   commonStyles,
@@ -26,6 +25,10 @@ import {
   ProductStockChart,
   StockEntryHistoryCard,
 } from '../components';
+import {
+  HistoryRowsSkeleton,
+  ProductDetailSkeleton,
+} from '../skeletons';
 import { useProductDetail, useProductStockEntries } from '../hooks';
 import type { ProductImageItem } from '../types';
 import { useInfiniteSalesOrders } from '../../orders/hooks';
@@ -86,11 +89,7 @@ export function ProductDetailScreen({ route, navigation }: Props) {
   }, [entries, activeTab]);
 
   if (isLoading || !product) {
-    return (
-      <View style={styles.centerBox}>
-        <IosLoader size={28} color={colors.primary} />
-      </View>
-    );
+    return <ProductDetailSkeleton />;
   }
 
   const imageList = resolveAllImages(product.images);
@@ -178,9 +177,7 @@ export function ProductDetailScreen({ route, navigation }: Props) {
 
           {activeTab === 'SALES' ? (
             isLoadingSales ? (
-              <View style={styles.loaderInline}>
-                <IosLoader size={22} color={colors.primary} />
-              </View>
+              <HistoryRowsSkeleton />
             ) : salesOrders.length === 0 ? (
               <Text style={styles.emptyText}>
                 No sales orders found for this product.
@@ -262,9 +259,7 @@ export function ProductDetailScreen({ route, navigation }: Props) {
               })
             )
           ) : isLoadingEntries ? (
-            <View style={styles.loaderInline}>
-              <IosLoader size={22} color={colors.primary} />
-            </View>
+            <HistoryRowsSkeleton />
           ) : filteredEntries.length === 0 ? (
             <Text style={styles.emptyText}>
               No stock entries found in this tab.

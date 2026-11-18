@@ -2,20 +2,24 @@ import React from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Bell, Building2, Share2 } from 'lucide-react-native';
-import { API_ORIGIN } from '../api';
+import { getApiOrigin } from '../api';
 import { popup } from '../store/popupStore';
 import { useStockSelectionStore } from '../store/stockSelectionStore';
 import { colors, fontSize, fontWeight, radius, spacing } from '../theme';
 import { useBusinessSettings, useMe } from '../../modules/auth/hooks';
+import { SkeletonBox } from './SkeletonBox';
 
 type MainHeaderProps = {
   onPressNotification?: () => void;
 };
 
 export function MainHeader({ onPressNotification }: MainHeaderProps) {
-  const { data: business } = useBusinessSettings();
-  const { data: user } = useMe();
+  const { data: business, isLoading: isLoadingBusiness } = useBusinessSettings();
+  const { data: user, isLoading: isLoadingMe } = useMe();
   const { selectedCount } = useStockSelectionStore();
+
+  const isHeaderLoading =
+    (isLoadingBusiness && !business) || (isLoadingMe && !user);
 
   const handlePressShare = () => {
     popup.info(
@@ -24,33 +28,43 @@ export function MainHeader({ onPressNotification }: MainHeaderProps) {
     );
   };
 
+  const origin = getApiOrigin();
   const companyName =
     business?.businessName || user?.name || 'WishBox Inventory';
   const logoUrl = business?.logoUrl
     ? business.logoUrl.startsWith('http')
       ? business.logoUrl
-      : `${API_ORIGIN}${business.logoUrl}`
+      : `${origin}${business.logoUrl}`
     : null;
 
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
       <View style={styles.container}>
         <View style={styles.left}>
-          <View style={styles.logoWrap}>
-            {logoUrl ? (
-              <Image
-                source={{ uri: logoUrl }}
-                style={styles.logoImg}
-                resizeMode="cover"
-              />
-            ) : (
-              <Building2 size={20} color={colors.primary} />
-            )}
-          </View>
+          {isHeaderLoading ? (
+            <>
+              <SkeletonBox width={40} height={40} borderRadius={radius.md} />
+              <SkeletonBox width={148} height={18} borderRadius={radius.sm} />
+            </>
+          ) : (
+            <>
+              <View style={styles.logoWrap}>
+                {logoUrl ? (
+                  <Image
+                    source={{ uri: logoUrl }}
+                    style={styles.logoImg}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Building2 size={20} color={colors.primary} />
+                )}
+              </View>
 
-          <Text style={styles.companyName} numberOfLines={1}>
-            {companyName}
-          </Text>
+              <Text style={styles.companyName} numberOfLines={1}>
+                {companyName}
+              </Text>
+            </>
+          )}
         </View>
 
         {selectedCount > 0 ? (

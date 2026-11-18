@@ -26,10 +26,13 @@ import { useDebounce } from '../../../core/hooks/useDebounce';
 import { colors, fontSize, fontWeight, radius, spacing } from '../../../core/theme';
 import { inventoryStyles } from '../../inventory/styles';
 import { useInfiniteCustomers } from '../hooks';
+import { CustomerListSkeleton } from '../skeletons';
 import type { CustomerItem, CustomerSortBy } from '../types';
 
 const CUSTOMER_SORT_OPTIONS: Array<{ label: string; value: CustomerSortBy }> = [
   { label: 'Newest First', value: 'NEWEST' },
+  { label: 'Paid %: High → Low', value: 'PAID_DESC' },
+  { label: 'Paid %: Low → High', value: 'PAID_ASC' },
   { label: 'Amount: High → Low', value: 'SPENT_DESC' },
   { label: 'Amount: Low → High', value: 'SPENT_ASC' },
   { label: 'Orders: High → Low', value: 'ORDERS_DESC' },
@@ -187,9 +190,7 @@ export function CustomersScreen() {
       </View>
 
       {isLoading ? (
-        <View style={inventoryStyles.centerBox}>
-          <IosLoader size={28} color={colors.primary} />
-        </View>
+        <CustomerListSkeleton />
       ) : (
         <FlatList
           data={customers}

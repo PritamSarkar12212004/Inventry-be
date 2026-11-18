@@ -26,6 +26,7 @@ import { useDebounce } from '../../../core/hooks/useDebounce';
 import { colors, fontSize, fontWeight, radius, spacing } from '../../../core/theme';
 import { inventoryStyles } from '../../inventory/styles';
 import { useInfiniteSalesOrders } from '../hooks';
+import { SalesOrderListSkeleton } from '../skeletons';
 import type { OrderSortBy, SalesOrderRecord } from '../types';
 
 const ORDER_SORT_OPTIONS: Array<{ label: string; value: OrderSortBy }> = [
@@ -201,9 +202,7 @@ export function SalesOrdersScreen() {
       </View>
 
       {isLoading ? (
-        <View style={inventoryStyles.centerBox}>
-          <IosLoader size={28} color={colors.primary} />
-        </View>
+        <SalesOrderListSkeleton />
       ) : (
         <FlatList
           data={orders}

@@ -10,6 +10,8 @@ const EMULATOR_FALLBACK_ORIGIN = 'http://10.0.2.2:3000';
 
 let activeOrigin = API_ORIGIN;
 
+export const getApiOrigin = () => activeOrigin;
+
 export const apiClient = axios.create({
   baseURL: `${activeOrigin}/api/v1`,
   timeout: 15000,

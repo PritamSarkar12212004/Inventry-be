@@ -12,7 +12,7 @@ import { Building2, LogOut, Mail, Phone } from 'lucide-react-native';
 import type { AxiosError } from 'axios';
 import { API_ORIGIN } from '../../../core/api';
 import { IosLoader } from '../../../core/components/IosLoader';
-import { authStore } from '../../../core/store/authStore';
+import { authStore, useAuthStore } from '../../../core/store/authStore';
 import { popup } from '../../../core/store/popupStore';
 import { colors } from '../../../core/theme';
 import {
@@ -28,12 +28,14 @@ import {
   useMe,
   useSaveProfile,
 } from '../hooks';
+import { ProfileFormSkeleton } from '../skeletons';
 import { profileStyles } from '../styles';
 import type { ApiResponse } from '../types';
 
 const EMAIL_REGEX = /^\S+@\S+\.\S+$/;
 
 export function ProfileScreen() {
+  const { isProfileCompleted } = useAuthStore();
   const { data: user, isLoading: isLoadingMe } = useMe();
   const { data: business, isLoading: isLoadingBusiness } =
     useBusinessSettings();
@@ -114,9 +116,7 @@ export function ProfileScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         {isLoadingInitial ? (
-          <View style={profileStyles.loaderBox}>
-            <IosLoader size={28} color={colors.primary} />
-          </View>
+          <ProfileFormSkeleton />
         ) : (
           <ScrollView
             contentContainerStyle={profileStyles.scrollContent}
@@ -164,26 +164,28 @@ export function ProfileScreen() {
                 loading={isSaving}
               />
 
-              <TouchableOpacity
-                style={[
-                  profileStyles.logoutBtn,
-                  isBusy && profileStyles.disabled,
-                ]}
-                onPress={() => logout()}
-                disabled={isBusy}
-                activeOpacity={0.8}
-              >
-                {isLoggingOut ? (
-                  <IosLoader size={18} color={colors.danger} />
-                ) : (
-                  <>
-                    <LogOut size={18} color={colors.danger} />
-                    <Text style={profileStyles.logoutText}>
-                      {AUTH_COPY.profile.logoutLabel}
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
+              {!isProfileCompleted ? (
+                <TouchableOpacity
+                  style={[
+                    profileStyles.logoutBtn,
+                    isBusy && profileStyles.disabled,
+                  ]}
+                  onPress={() => logout()}
+                  disabled={isBusy}
+                  activeOpacity={0.8}
+                >
+                  {isLoggingOut ? (
+                    <IosLoader size={18} color={colors.danger} />
+                  ) : (
+                    <>
+                      <LogOut size={18} color={colors.danger} />
+                      <Text style={profileStyles.logoutText}>
+                        {AUTH_COPY.profile.logoutLabel}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              ) : null}
             </View>
           </ScrollView>
         )}
