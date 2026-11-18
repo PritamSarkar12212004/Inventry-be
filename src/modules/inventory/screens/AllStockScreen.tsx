@@ -30,10 +30,11 @@ import { colors } from '../../../core/theme';
 import {
   CategoryGridCard,
   StockItemCard,
+  StockOverviewBanner,
   type CategorySummary,
 } from '../components';
 import { INVENTORY_COPY } from '../data';
-import { useInfiniteInventoryList } from '../hooks';
+import { useInfiniteInventoryList, useInventorySummary } from '../hooks';
 import { StockListSkeleton } from '../skeletons';
 import { inventoryStyles } from '../styles';
 import type { InventoryItem, ProductImageItem } from '../types';
@@ -66,6 +67,12 @@ export function AllStockScreen() {
   );
 
   const debouncedSearch = useDebounce(search.trim(), 350);
+
+  const {
+    data: summaryData,
+    isLoading: summaryLoading,
+    refetch: refetchSummary,
+  } = useInventorySummary();
 
   const {
     data,
@@ -223,6 +230,21 @@ export function AllStockScreen() {
     [selectionMode, toSelectionPayload, navigation],
   );
 
+  const handleNavigateAlerts = useCallback(() => {
+    (navigation as unknown as { navigate: (screen: string) => void }).navigate(
+      'LowStock',
+    );
+  }, [navigation]);
+
+  const overviewHeader =
+    !selectionMode && !debouncedSearch && !selectedCategory ? (
+      <StockOverviewBanner
+        summary={summaryData}
+        isLoading={summaryLoading}
+        onPressAlerts={handleNavigateAlerts}
+      />
+    ) : undefined;
+
   return (
     <View style={inventoryStyles.screen}>
       <View style={inventoryStyles.searchWrap}>
@@ -305,10 +327,12 @@ export function AllStockScreen() {
               refreshing={isRefetching}
               onRefresh={() => {
                 refetch();
+                refetchSummary();
               }}
               tintColor={colors.primary}
             />
           }
+          ListHeaderComponent={overviewHeader}
           renderItem={({ item }) => (
             <CategoryGridCard
               category={item}
@@ -355,10 +379,12 @@ export function AllStockScreen() {
               refreshing={isRefetching}
               onRefresh={() => {
                 refetch();
+                refetchSummary();
               }}
               tintColor={colors.primary}
             />
           }
+          ListHeaderComponent={overviewHeader}
           renderItem={({ item }) => (
             <StockItemCard
               item={item}

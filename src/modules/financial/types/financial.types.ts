@@ -2,6 +2,9 @@ import type { PaginationMeta } from '../../inventory/types';
 
 export type FinancialOverviewData = {
   totalOrders: number;
+  paidOrdersCount?: number;
+  partialOrdersCount?: number;
+  unpaidOrdersCount?: number;
   totalSales: number;
   totalReceived: number;
   totalPendingDue: number;

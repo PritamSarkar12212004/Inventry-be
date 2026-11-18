@@ -5,7 +5,7 @@ import { authStore } from '../store/authStore';
 
 // With `adb reverse tcp:3000 tcp:3000`, localhost:3000 works on both Emulator & USB phone.
 // If emulator loses adb reverse, we automatically fall back to 10.0.2.2:3000.
-export const API_ORIGIN = 'http://localhost:3000';
+export const API_ORIGIN = 'https://inventry-qbke.onrender.com';
 const EMULATOR_FALLBACK_ORIGIN = 'http://10.0.2.2:3000';
 
 let activeOrigin = API_ORIGIN;
@@ -14,7 +14,7 @@ export const getApiOrigin = () => activeOrigin;
 
 export const apiClient = axios.create({
   baseURL: `${activeOrigin}/api/v1`,
-  timeout: 15000,
+  timeout: 45000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -69,6 +69,7 @@ apiClient.interceptors.response.use(
 
     if (
       Platform.OS === 'android' &&
+      API_ORIGIN.includes('localhost') &&
       !error.response &&
       originalRequest &&
       !originalRequest._fallbackRetry

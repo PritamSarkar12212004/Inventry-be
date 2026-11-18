@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { RootStackParamList } from './types';
 import { AuthStack } from './AuthStack';
@@ -31,6 +31,18 @@ import {
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 
+const navTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    background: colors.background,
+    card: colors.surface,
+    text: colors.textPrimary,
+    border: colors.borderSubtle,
+    primary: colors.primary,
+  },
+};
+
 const InvoiceDetailScreen = () => (
   <PlaceholderScreen title="Invoice Detail & PDF" />
 );
@@ -53,15 +65,18 @@ export default function RootNavigator() {
   }
 
   return (
-    <NavigationContainer>
-      <RootStack.Navigator
-        screenOptions={{
-          headerStyle: { backgroundColor: colors.surface },
-          headerTintColor: colors.textPrimary,
-          headerTitleStyle: { fontWeight: fontWeight.bold },
-          headerShadowVisible: false,
-        }}
-      >
+    <View style={styles.rootBg}>
+      <NavigationContainer theme={navTheme}>
+        <RootStack.Navigator
+          screenOptions={{
+            headerStyle: { backgroundColor: colors.surface },
+            headerTintColor: colors.textPrimary,
+            headerTitleStyle: { fontWeight: fontWeight.bold },
+            headerShadowVisible: false,
+            contentStyle: { backgroundColor: colors.background },
+            animation: 'fade',
+          }}
+        >
         {!isAuthenticated ? (
           <RootStack.Screen
             name="Auth"
@@ -153,12 +168,17 @@ export default function RootNavigator() {
             />
           </>
         )}
-      </RootStack.Navigator>
-    </NavigationContainer>
+        </RootStack.Navigator>
+      </NavigationContainer>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  rootBg: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   splash: {
     flex: 1,
     justifyContent: 'center',

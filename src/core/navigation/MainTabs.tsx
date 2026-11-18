@@ -16,9 +16,9 @@ import type {
   StockTopTabsParamList,
 } from './types';
 import { MainHeader } from '../components/MainHeader';
-import { PlaceholderScreen } from './PlaceholderScreen';
 import { colors, fontSize, fontWeight, radius, shadows } from '../theme';
 import { ProfileTabScreen } from '../../modules/auth';
+import { DashboardScreen } from '../../modules/dashboard';
 import { AllStockScreen, LowStockScreen } from '../../modules/inventory';
 import { CustomersScreen, SalesOrdersScreen } from '../../modules/orders';
 import {
@@ -52,15 +52,6 @@ const topTabScreenOptions = {
   },
   tabBarScrollEnabled: true,
 };
-
-function DashboardScreen() {
-  return (
-    <PlaceholderScreen
-      title="Inventory Dashboard"
-      subtitle="KPIs, Quick Actions, Low Stock Alerts"
-    />
-  );
-}
 
 function StockTopTabs() {
   return (

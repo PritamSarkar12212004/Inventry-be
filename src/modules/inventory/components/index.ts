@@ -8,3 +8,4 @@ export { ProductPickerSheet } from './ProductPickerSheet';
 export { SupplierPickerSheet } from './SupplierPickerSheet';
 export { StockEntryHistoryCard } from './StockEntryHistoryCard';
 export { ProductStockChart } from './ProductStockChart';
+export { StockOverviewBanner } from './StockOverviewBanner';

@@ -17,6 +17,7 @@ import type {
 
 export const INVENTORY_QUERY_KEYS = {
   all: ['inventory'] as const,
+  summary: ['inventory', 'summary'] as const,
   list: (params?: InventoryListParams) => ['inventory', 'list', params] as const,
   categories: (search?: string) => ['inventory', 'categories', search] as const,
   suppliers: (search?: string) => ['inventory', 'suppliers', search] as const,
@@ -28,6 +29,16 @@ export const INVENTORY_QUERY_KEYS = {
   analytics: (productId: string, period: AnalyticsPeriod, year?: number) =>
     ['inventory', 'analytics', productId, period, year] as const,
 };
+
+export function useInventorySummary() {
+  return useQuery({
+    queryKey: INVENTORY_QUERY_KEYS.summary,
+    queryFn: async () => {
+      const res = await inventoryApi.getSummary();
+      return res.data;
+    },
+  });
+}
 
 export function useInventoryList(params?: InventoryListParams) {
   return useQuery({

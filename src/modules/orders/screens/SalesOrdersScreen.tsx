@@ -25,6 +25,8 @@ import { IosLoader } from '../../../core/components/IosLoader';
 import { useDebounce } from '../../../core/hooks/useDebounce';
 import { colors, fontSize, fontWeight, radius, spacing } from '../../../core/theme';
 import { inventoryStyles } from '../../inventory/styles';
+import { useFinancialOverview } from '../../financial/hooks';
+import { SalesOverviewBanner } from '../components';
 import { useInfiniteSalesOrders } from '../hooks';
 import { SalesOrderListSkeleton } from '../skeletons';
 import type { OrderSortBy, SalesOrderRecord } from '../types';
@@ -65,6 +67,12 @@ export function SalesOrdersScreen() {
       setSortMenuOpen(true);
     });
   };
+
+  const {
+    data: overviewData,
+    isLoading: overviewLoading,
+    refetch: refetchOverview,
+  } = useFinancialOverview();
 
   const {
     data,
@@ -213,9 +221,18 @@ export function SalesOrdersScreen() {
               refreshing={isRefetching}
               onRefresh={() => {
                 refetch();
+                refetchOverview();
               }}
               tintColor={colors.primary}
             />
+          }
+          ListHeaderComponent={
+            !debouncedSearch ? (
+              <SalesOverviewBanner
+                overview={overviewData}
+                isLoading={overviewLoading}
+              />
+            ) : undefined
           }
           renderItem={renderOrderCard}
           onEndReached={handleLoadMore}

@@ -8,6 +8,7 @@ import type {
   CreateStockEntryPayload,
   CreateSupplierPayload,
   InventoryListResponse,
+  InventorySummaryData,
   PaginationMeta,
   ProductAnalyticsData,
   ProductDetailData,
@@ -28,6 +29,11 @@ export type InventoryListParams = {
 export const inventoryApi = {
   getList: (params?: InventoryListParams) =>
     apiGet<InventoryListResponse>(INVENTORY_PATHS.list, params),
+
+  getSummary: () =>
+    apiGet<{ success: boolean; data: InventorySummaryData }>(
+      INVENTORY_PATHS.summary,
+    ),
 
   createStockEntry: (payload: CreateStockEntryPayload) =>
     apiPost<StockEntryResponse, CreateStockEntryPayload>(

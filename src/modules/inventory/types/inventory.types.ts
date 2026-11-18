@@ -33,6 +33,22 @@ export type PaginationMeta = {
   totalPages: number;
 };
 
+export type InventorySummaryData = {
+  totalProducts: number;
+  totalCategories: number;
+  activeProducts: number;
+  totalStockQuantity: number;
+  totalReservedQuantity: number;
+  totalAvailableQuantity: number;
+  totalDamagedQuantity: number;
+  totalHoldQuantity: number;
+  totalStockValue: number;
+  totalCostValuation: number;
+  inStockCount: number;
+  lowStockCount: number;
+  outOfStockCount: number;
+};
+
 export type InventoryListResponse = {
   success: boolean;
   message?: string;
