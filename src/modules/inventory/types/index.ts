@@ -18,4 +18,5 @@ export type {
   StockSourceType,
   StockStatus,
   SupplierItem,
+  SupplierSortBy,
 } from './inventory.types';

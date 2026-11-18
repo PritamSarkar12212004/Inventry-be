@@ -69,11 +69,11 @@ apiClient.interceptors.response.use(
       Platform.OS === 'android' &&
       !error.response &&
       originalRequest &&
-      !originalRequest._fallbackRetry &&
-      activeOrigin !== EMULATOR_FALLBACK_ORIGIN
+      !originalRequest._fallbackRetry
     ) {
       originalRequest._fallbackRetry = true;
-      activeOrigin = EMULATOR_FALLBACK_ORIGIN;
+      activeOrigin =
+        activeOrigin === API_ORIGIN ? EMULATOR_FALLBACK_ORIGIN : API_ORIGIN;
       originalRequest.baseURL = `${activeOrigin}/api/v1`;
       return apiClient(originalRequest);
     }

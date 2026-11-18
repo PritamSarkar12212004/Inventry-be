@@ -7,27 +7,31 @@ import {
   Home,
   Package,
   ShoppingCart,
-  Truck,
-  LayoutGrid,
+  User,
+  Wallet,
 } from 'lucide-react-native';
 import type {
   MainTabsParamList,
-  PurchaseTopTabsParamList,
+  ProfileTopTabsParamList,
   SalesTopTabsParamList,
   StockTopTabsParamList,
 } from './types';
 import { MainHeader } from '../components/MainHeader';
 import { PlaceholderScreen } from './PlaceholderScreen';
-import { MoreStack } from './MoreStack';
 import { colors, fontSize, fontWeight, radius, shadows } from '../theme';
+import { ProfileScreen } from '../../modules/auth';
 import { AllStockScreen, LowStockScreen } from '../../modules/inventory';
 import { CustomersScreen, SalesOrdersScreen } from '../../modules/orders';
+import {
+  FinancialScreen,
+  SuppliersPurchasesScreen,
+} from '../../modules/financial';
+import { BusinessSettingsScreen } from '../../modules/settings';
 
 const BottomTab = createBottomTabNavigator<MainTabsParamList>();
 const StockTopTab = createMaterialTopTabNavigator<StockTopTabsParamList>();
 const SalesTopTab = createMaterialTopTabNavigator<SalesTopTabsParamList>();
-const PurchaseTopTab =
-  createMaterialTopTabNavigator<PurchaseTopTabsParamList>();
+const ProfileTopTab = createMaterialTopTabNavigator<ProfileTopTabsParamList>();
 
 const topTabScreenOptions = {
   tabBarActiveTintColor: colors.primary,
@@ -101,36 +105,34 @@ function SalesTopTabs() {
         options={{ title: 'Customers' }}
         component={CustomersScreen}
       />
+      <SalesTopTab.Screen
+        name="Suppliers"
+        options={{ title: 'Suppliers' }}
+        component={SuppliersPurchasesScreen}
+      />
     </SalesTopTab.Navigator>
   );
 }
 
-function PurchaseTopTabs() {
+function ProfileTopTabs() {
   return (
-    <PurchaseTopTab.Navigator screenOptions={topTabScreenOptions}>
-      <PurchaseTopTab.Screen
-        name="PurchaseOrders"
-        options={{ title: 'POs' }}
-        children={() => <PlaceholderScreen title="Purchase Orders" />}
+    <ProfileTopTab.Navigator
+      screenOptions={{
+        ...topTabScreenOptions,
+        tabBarScrollEnabled: false,
+      }}
+    >
+      <ProfileTopTab.Screen
+        name="UserProfile"
+        options={{ title: 'Profile' }}
+        component={ProfileScreen}
       />
-      <PurchaseTopTab.Screen
-        name="GrnList"
-        options={{ title: 'GRN' }}
-        children={() => (
-          <PlaceholderScreen title="Goods Received Notes (GRN)" />
-        )}
+      <ProfileTopTab.Screen
+        name="BusinessInvoice"
+        options={{ title: 'Business & Invoice' }}
+        component={BusinessSettingsScreen}
       />
-      <PurchaseTopTab.Screen
-        name="PurchaseReturns"
-        options={{ title: 'Returns' }}
-        children={() => <PlaceholderScreen title="Purchase Returns" />}
-      />
-      <PurchaseTopTab.Screen
-        name="Suppliers"
-        options={{ title: 'Suppliers' }}
-        children={() => <PlaceholderScreen title="Suppliers" />}
-      />
-    </PurchaseTopTab.Navigator>
+    </ProfileTopTab.Navigator>
   );
 }
 
@@ -171,12 +173,12 @@ const renderSalesIcon = ({ focused, color, size }: TabIconProps) => (
 );
 const renderReceiveIcon = ({ focused, color, size }: TabIconProps) => (
   <TabIconBadge focused={focused}>
-    <Truck color={color} size={size - 2} strokeWidth={focused ? 2.3 : 1.8} />
+    <Wallet color={color} size={size - 2} strokeWidth={focused ? 2.3 : 1.8} />
   </TabIconBadge>
 );
-const renderMoreIcon = ({ focused, color, size }: TabIconProps) => (
+const renderProfileIcon = ({ focused, color, size }: TabIconProps) => (
   <TabIconBadge focused={focused}>
-    <LayoutGrid
+    <User
       color={color}
       size={size - 2}
       strokeWidth={focused ? 2.3 : 1.8}
@@ -241,18 +243,18 @@ export function MainTabs() {
       />
       <BottomTab.Screen
         name="ReceiveTab"
-        component={PurchaseTopTabs}
+        component={FinancialScreen}
         options={{
-          title: 'Receive',
+          title: 'Finance',
           tabBarIcon: renderReceiveIcon,
         }}
       />
       <BottomTab.Screen
         name="MoreTab"
-        component={MoreStack}
+        component={ProfileTopTabs}
         options={{
-          title: 'More',
-          tabBarIcon: renderMoreIcon,
+          title: 'Profile',
+          tabBarIcon: renderProfileIcon,
         }}
       />
       </BottomTab.Navigator>

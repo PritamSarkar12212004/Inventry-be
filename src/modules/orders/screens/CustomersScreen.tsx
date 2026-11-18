@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   Modal,
@@ -9,26 +9,50 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import type { AxiosError } from 'axios';
-import { Phone, Plus, Search, User, Users, X } from 'lucide-react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import {
+  ArrowUpDown,
+  Check,
+  Phone,
+  Search,
+  User,
+  Users,
+  X,
+} from 'lucide-react-native';
+import type { RootStackParamList } from '../../../core/navigation/types';
 import { IosLoader } from '../../../core/components/IosLoader';
 import { useDebounce } from '../../../core/hooks/useDebounce';
-import { popup } from '../../../core/store/popupStore';
 import { colors, fontSize, fontWeight, radius, spacing } from '../../../core/theme';
-import { AuthButton } from '../../auth/components';
-import type { ApiResponse } from '../../auth/types';
 import { inventoryStyles } from '../../inventory/styles';
-import { useCreateCustomer, useInfiniteCustomers } from '../hooks';
-import type { CustomerItem } from '../types';
+import { useInfiniteCustomers } from '../hooks';
+import type { CustomerItem, CustomerSortBy } from '../types';
+
+const CUSTOMER_SORT_OPTIONS: Array<{ label: string; value: CustomerSortBy }> = [
+  { label: 'Newest First', value: 'NEWEST' },
+  { label: 'Amount: High → Low', value: 'SPENT_DESC' },
+  { label: 'Amount: Low → High', value: 'SPENT_ASC' },
+  { label: 'Orders: High → Low', value: 'ORDERS_DESC' },
+  { label: 'Orders: Low → High', value: 'ORDERS_ASC' },
+  { label: 'Name: A → Z', value: 'NAME_ASC' },
+];
 
 export function CustomersScreen() {
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState<CustomerSortBy>('NEWEST');
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const [menuTop, setMenuTop] = useState(120);
+  const sortBtnRef = useRef<React.ComponentRef<typeof View>>(null);
   const debouncedSearch = useDebounce(search.trim(), 350);
 
-  const [modalVisible, setModalVisible] = useState(false);
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
+  const handleOpenSortMenu = () => {
+    sortBtnRef.current?.measureInWindow((_x, y, _w, height) => {
+      setMenuTop(y + height + 6);
+      setSortMenuOpen(true);
+    });
+  };
 
   const {
     data,
@@ -38,9 +62,10 @@ export function CustomersScreen() {
     hasNextPage,
     fetchNextPage,
     refetch,
-  } = useInfiniteCustomers(debouncedSearch || undefined);
+  } = useInfiniteCustomers(debouncedSearch || undefined, sortBy);
 
-  const { mutate: createCustomer, isPending: isCreating } = useCreateCustomer();
+  const activeSortLabel =
+    CUSTOMER_SORT_OPTIONS.find((f) => f.value === sortBy)?.label || '';
 
   const customers = useMemo(
     () => data?.pages.flatMap((page) => page.items) ?? [],
@@ -53,72 +78,112 @@ export function CustomersScreen() {
     }
   };
 
-  const handleCreate = () => {
-    if (!name.trim()) {
-      popup.error('Required', 'Customer name is required.');
-      return;
-    }
+  const renderCustomer = ({ item }: { item: CustomerItem }) => {
+    const totalOrders = Number(item.totalOrders || 0);
+    const totalSpent = Number(item.totalSpent || 0);
+    const totalPaid = Number(item.totalPaid || 0);
+    const pendingBalance = Math.max(0, totalSpent - totalPaid);
 
-    createCustomer(
-      {
-        name: name.trim(),
-        phone: phone.trim() || undefined,
-        billingAddress: address.trim() || undefined,
-      },
-      {
-        onSuccess: () => {
-          setName('');
-          setPhone('');
-          setAddress('');
-          setModalVisible(false);
-          popup.success('Customer Added', 'Customer saved successfully.');
-        },
-        onError: (err) => {
-          const axiosErr = err as AxiosError<ApiResponse<unknown>>;
-          popup.error(
-            'Error',
-            axiosErr.response?.data?.message || 'Unable to add customer.',
-          );
-        },
-      },
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        activeOpacity={0.82}
+        onPress={() =>
+          navigation.navigate('CustomerDetail', { customer: item })
+        }
+      >
+        <View style={styles.topRow}>
+          <View style={styles.avatar}>
+            <User size={18} color={colors.primary} />
+          </View>
+          <View style={styles.info}>
+            <Text style={styles.name} numberOfLines={1}>
+              {item.name}
+            </Text>
+            <View style={styles.phoneRow}>
+              <Phone size={12} color={colors.textSecondary} />
+              <Text style={styles.phone}>{item.phone || 'No phone'}</Text>
+            </View>
+            {item.billingAddress || item.address ? (
+              <Text style={styles.address} numberOfLines={1}>
+                {item.billingAddress || item.address}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+
+        <View style={styles.statsRow}>
+          <View style={styles.statsLeft}>
+            <Text style={styles.statsMeta}>
+              {totalOrders} {totalOrders === 1 ? 'Order' : 'Orders'}
+            </Text>
+            {pendingBalance > 0 ? (
+              <View style={styles.pendingPill}>
+                <Text style={styles.pendingPillText}>
+                  Pending: ₹{pendingBalance.toLocaleString('en-IN')}
+                </Text>
+              </View>
+            ) : totalOrders > 0 ? (
+              <View style={styles.settledPill}>
+                <Text style={styles.settledPillText}>Settled</Text>
+              </View>
+            ) : null}
+          </View>
+          <Text style={styles.statsTotal}>
+            ₹{totalSpent.toLocaleString('en-IN')}
+          </Text>
+        </View>
+      </TouchableOpacity>
     );
   };
-
-  const renderCustomer = ({ item }: { item: CustomerItem }) => (
-    <View style={styles.card}>
-      <View style={styles.avatar}>
-        <User size={18} color={colors.primary} />
-      </View>
-      <View style={styles.info}>
-        <Text style={styles.name} numberOfLines={1}>
-          {item.name}
-        </Text>
-        <View style={styles.phoneRow}>
-          <Phone size={12} color={colors.textSecondary} />
-          <Text style={styles.phone}>{item.phone || 'No phone'}</Text>
-        </View>
-        {item.billingAddress || item.address ? (
-          <Text style={styles.address} numberOfLines={1}>
-            {item.billingAddress || item.address}
-          </Text>
-        ) : null}
-      </View>
-    </View>
-  );
 
   return (
     <View style={inventoryStyles.screen}>
       <View style={inventoryStyles.searchWrap}>
-        <View style={inventoryStyles.searchBox}>
-          <Search size={18} color={colors.textMuted} />
-          <TextInput
-            style={inventoryStyles.searchInput}
-            placeholder="Search customer name or phone..."
-            placeholderTextColor={colors.textMuted}
-            value={search}
-            onChangeText={setSearch}
-          />
+        <View style={inventoryStyles.searchRow}>
+          <View style={inventoryStyles.searchBox}>
+            <Search size={18} color={colors.textMuted} />
+            <TextInput
+              style={inventoryStyles.searchInput}
+              placeholder="Search customer name or phone..."
+              placeholderTextColor={colors.textMuted}
+              value={search}
+              onChangeText={setSearch}
+            />
+          </View>
+
+          <View ref={sortBtnRef} collapsable={false}>
+            <TouchableOpacity
+              style={[
+                styles.sortBtn,
+                sortBy !== 'NEWEST' && styles.sortBtnActive,
+              ]}
+              onPress={handleOpenSortMenu}
+              activeOpacity={0.8}
+            >
+              <ArrowUpDown
+                size={18}
+                color={
+                  sortBy !== 'NEWEST' ? colors.primary : colors.textSecondary
+                }
+              />
+            </TouchableOpacity>
+          </View>
         </View>
+
+        {sortBy !== 'NEWEST' ? (
+          <View style={inventoryStyles.filterChipRow}>
+            <TouchableOpacity
+              style={inventoryStyles.activeFilterChip}
+              onPress={() => setSortBy('NEWEST')}
+            >
+              <Text style={inventoryStyles.activeFilterText}>
+                Sort: {activeSortLabel}
+              </Text>
+              <X size={14} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+        ) : null}
       </View>
 
       {isLoading ? (
@@ -154,88 +219,129 @@ export function CustomersScreen() {
               <Users size={40} color={colors.textMuted} />
               <Text style={inventoryStyles.emptyTitle}>No customers yet</Text>
               <Text style={inventoryStyles.emptySubtitle}>
-                Customers are added automatically on sale or via + Add Customer.
+                Customers are added automatically when you create a sale.
               </Text>
             </View>
           }
         />
       )}
 
-      <TouchableOpacity
-        style={inventoryStyles.fab}
-        onPress={() => setModalVisible(true)}
-        activeOpacity={0.85}
-      >
-        <Plus size={18} color={colors.textInverse} />
-        <Text style={inventoryStyles.fabText}>Add Customer</Text>
-      </TouchableOpacity>
-
       <Modal
-        visible={modalVisible}
+        visible={sortMenuOpen}
         transparent
-        animationType="fade"
-        onRequestClose={() => setModalVisible(false)}
+        animationType="none"
+        onRequestClose={() => setSortMenuOpen(false)}
       >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>New Customer</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <X size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.label}>Customer Name *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. Aarav Enterprises"
-              placeholderTextColor={colors.textMuted}
-              value={name}
-              onChangeText={setName}
-            />
-
-            <Text style={styles.label}>Phone / WhatsApp Number</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. 9876543210"
-              placeholderTextColor={colors.textMuted}
-              keyboardType="phone-pad"
-              value={phone}
-              onChangeText={setPhone}
-            />
-
-            <Text style={styles.label}>Address (Optional)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="City, Shop or Address"
-              placeholderTextColor={colors.textMuted}
-              value={address}
-              onChangeText={setAddress}
-            />
-
-            <View style={styles.modalBtnWrap}>
-              <AuthButton
-                title="Save Customer"
-                onPress={handleCreate}
-                loading={isCreating}
-              />
-            </View>
+        <TouchableOpacity
+          style={styles.menuBackdrop}
+          activeOpacity={1}
+          onPress={() => setSortMenuOpen(false)}
+        >
+          <View style={[styles.menuCard, { top: menuTop }]}>
+            {CUSTOMER_SORT_OPTIONS.map((opt, idx) => {
+              const selected = sortBy === opt.value;
+              return (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[
+                    styles.sortOption,
+                    idx === CUSTOMER_SORT_OPTIONS.length - 1 &&
+                      styles.sortOptionLast,
+                    selected && styles.sortOptionActive,
+                  ]}
+                  onPress={() => {
+                    setSortBy(opt.value);
+                    setSortMenuOpen(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.sortOptionText,
+                      selected && styles.sortOptionTextActive,
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                  {selected ? (
+                    <Check size={16} color={colors.primary} />
+                  ) : null}
+                </TouchableOpacity>
+              );
+            })}
           </View>
-        </View>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
+  sortBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sortBtnActive: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary,
+  },
+  menuBackdrop: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  menuCard: {
+    position: 'absolute',
+    right: spacing.lg,
+    width: 220,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: spacing.xs,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.14,
+    shadowRadius: 12,
+  },
+  sortOption: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 11,
+    paddingHorizontal: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
+  },
+  sortOptionLast: {
+    borderBottomWidth: 0,
+  },
+  sortOptionActive: {
+    backgroundColor: colors.primarySoft,
+  },
+  sortOptionText: {
+    fontSize: fontSize.sm,
+    color: colors.textPrimary,
+  },
+  sortOptionTextActive: {
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
+  },
+  card: {
     backgroundColor: colors.surface,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.md,
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.md,
   },
   avatar: {
@@ -269,46 +375,50 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: 2,
   },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  modalCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-  },
-  modalHeader: {
+  statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    justifyContent: 'space-between',
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
   },
-  modalTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
-    color: colors.textPrimary,
+  statsLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs + 2,
+    flexWrap: 'wrap',
   },
-  label: {
+  pendingPill: {
+    backgroundColor: colors.dangerBg,
+    paddingHorizontal: spacing.xs + 4,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+  },
+  pendingPillText: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.semibold,
+    color: colors.danger,
+  },
+  settledPill: {
+    backgroundColor: colors.successBg,
+    paddingHorizontal: spacing.xs + 4,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+  },
+  settledPillText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: colors.success,
+  },
+  statsMeta: {
+    fontSize: fontSize.xs,
     color: colors.textSecondary,
-    marginTop: spacing.sm,
-    marginBottom: 4,
   },
-  input: {
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceSubtle,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+  statsTotal: {
     fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
     color: colors.textPrimary,
-  },
-  modalBtnWrap: {
-    marginTop: spacing.lg,
   },
 });

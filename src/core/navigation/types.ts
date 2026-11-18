@@ -1,3 +1,10 @@
+import type {
+  CustomerOutstandingItem,
+  ExpenseBreakdownItem,
+  PurchaseEntryDetailItem,
+  SupplierSummaryItem,
+} from '../../modules/financial/types';
+
 export type AuthStackParamList = {
   PhoneLogin: undefined;
   OtpVerify: { phone: string };
@@ -11,6 +18,12 @@ export type StockTopTabsParamList = {
 export type SalesTopTabsParamList = {
   SalesOrders: undefined;
   Customers: undefined;
+  Suppliers: undefined;
+};
+
+export type ProfileTopTabsParamList = {
+  UserProfile: undefined;
+  BusinessInvoice: undefined;
 };
 
 export type PurchaseTopTabsParamList = {
@@ -44,6 +57,20 @@ export type RootStackParamList = {
   Main: undefined;
   ProductDetail: { productId: string };
   ProductForm: { productId?: string } | undefined;
+  CustomerDetail: {
+    customer: {
+      _id: string;
+      name: string;
+      phone?: string;
+      billingAddress?: string;
+      shippingAddress?: string;
+      address?: string;
+      gstin?: string | null;
+      totalOrders?: number;
+      totalSpent?: number;
+      totalPaid?: number;
+    };
+  };
   SalesOrderDetail: { orderId: string };
   SalesOrderForm: undefined;
   StockEntryForm:
@@ -55,6 +82,22 @@ export type RootStackParamList = {
       }
     | undefined;
   InvoiceDetail: { invoiceId: string };
+  CustomerPendingDetail: { customer: CustomerOutstandingItem };
+  SupplierPurchaseDetail: {
+    title: string;
+    subtitle?: string;
+    mode: 'ALL_PURCHASES' | 'SUPPLIER' | 'EXPENSE_CATEGORY';
+    supplier?: SupplierSummaryItem;
+    category?: ExpenseBreakdownItem;
+    purchases?: PurchaseEntryDetailItem[];
+    summaryStats?: {
+      totalAmount: number;
+      materialCost: number;
+      transportCost: number;
+      otherCost: number;
+      count: number;
+    };
+  };
   GrnForm: { poId?: string } | undefined;
   DamageForm: undefined;
 };

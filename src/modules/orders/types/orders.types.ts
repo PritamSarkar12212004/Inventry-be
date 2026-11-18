@@ -11,6 +11,10 @@ export type CustomerItem = {
   address?: string;
   gstin?: string | null;
   customerType?: string;
+  totalOrders?: number;
+  totalProductsBought?: number;
+  totalSpent?: number;
+  totalPaid?: number;
 };
 
 export type CustomerListResponse = {
@@ -60,10 +64,50 @@ export type SalesOrderRecord = {
   tax: number;
   shippingCharges: number;
   grandTotal: number;
+  advancePaid?: number;
   paymentStatus: 'UNPAID' | 'PARTIAL' | 'PAID';
+  paymentHistory?: OrderPaymentEntry[];
   fulfillmentStatus: string;
   paymentTerms?: string;
   notes?: string;
+};
+
+export type PaymentMode =
+  | 'CASH'
+  | 'UPI'
+  | 'BANK_TRANSFER'
+  | 'CARD'
+  | 'CHEQUE'
+  | 'OTHER';
+
+export type OrderSortBy =
+  | 'DATE_DESC'
+  | 'PAID_DESC'
+  | 'PAID_ASC'
+  | 'AMOUNT_DESC'
+  | 'AMOUNT_ASC'
+  | 'DATE_ASC';
+
+export type CustomerSortBy =
+  | 'NEWEST'
+  | 'SPENT_DESC'
+  | 'SPENT_ASC'
+  | 'ORDERS_DESC'
+  | 'ORDERS_ASC'
+  | 'NAME_ASC';
+
+export type OrderPaymentEntry = {
+  _id?: string;
+  amount: number;
+  paymentMode: PaymentMode;
+  paidAt: string;
+  note?: string;
+};
+
+export type RecordOrderPaymentPayload = {
+  amount: number;
+  paymentMode?: PaymentMode;
+  note?: string;
 };
 
 export type SalesOrderListResponse = {

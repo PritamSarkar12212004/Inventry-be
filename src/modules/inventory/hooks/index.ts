@@ -8,6 +8,7 @@ export {
   useCreateCategory,
   useSuppliers,
   useInfiniteSuppliers,
+  useInfiniteSupplierStockEntries,
   useCreateSupplier,
   useProductDetail,
   useProductMovements,

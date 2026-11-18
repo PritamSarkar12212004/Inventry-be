@@ -4,5 +4,8 @@ export {
   useSalesOrderDetail,
   useCreateSalesOrder,
   useInfiniteCustomers,
+  useCustomerDetail,
   useCreateCustomer,
+  useRecordOrderPayment,
+  useDeleteSalesOrder,
 } from './useOrders';

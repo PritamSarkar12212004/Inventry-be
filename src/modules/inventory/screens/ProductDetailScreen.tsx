@@ -522,6 +522,6 @@ const styles = StyleSheet.create({
   saleTotalText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
-    color: colors.primary,
+    color: colors.textPrimary,
   },
 });

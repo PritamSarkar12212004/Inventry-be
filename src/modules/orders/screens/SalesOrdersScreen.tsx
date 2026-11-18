@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   FlatList,
+  Modal,
   RefreshControl,
   StyleSheet,
   Text,
@@ -10,14 +11,31 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { FileText, Plus, Search, ShoppingBag } from 'lucide-react-native';
+import {
+  ArrowUpDown,
+  Check,
+  FileText,
+  Plus,
+  Search,
+  ShoppingBag,
+  X,
+} from 'lucide-react-native';
 import type { RootStackParamList } from '../../../core/navigation/types';
 import { IosLoader } from '../../../core/components/IosLoader';
 import { useDebounce } from '../../../core/hooks/useDebounce';
 import { colors, fontSize, fontWeight, radius, spacing } from '../../../core/theme';
 import { inventoryStyles } from '../../inventory/styles';
 import { useInfiniteSalesOrders } from '../hooks';
-import type { SalesOrderRecord } from '../types';
+import type { OrderSortBy, SalesOrderRecord } from '../types';
+
+const ORDER_SORT_OPTIONS: Array<{ label: string; value: OrderSortBy }> = [
+  { label: 'Newest First', value: 'DATE_DESC' },
+  { label: 'Paid %: High → Low', value: 'PAID_DESC' },
+  { label: 'Paid %: Low → High', value: 'PAID_ASC' },
+  { label: 'Amount: High → Low', value: 'AMOUNT_DESC' },
+  { label: 'Amount: Low → High', value: 'AMOUNT_ASC' },
+  { label: 'Oldest First', value: 'DATE_ASC' },
+];
 
 function formatDate(dateStr?: string): string {
   if (!dateStr) return '—';
@@ -34,7 +52,18 @@ export function SalesOrdersScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState<OrderSortBy>('DATE_DESC');
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const [menuTop, setMenuTop] = useState(120);
+  const sortBtnRef = useRef<React.ComponentRef<typeof View>>(null);
   const debouncedSearch = useDebounce(search.trim(), 350);
+
+  const handleOpenSortMenu = () => {
+    sortBtnRef.current?.measureInWindow((_x, y, _w, height) => {
+      setMenuTop(y + height + 6);
+      setSortMenuOpen(true);
+    });
+  };
 
   const {
     data,
@@ -44,7 +73,14 @@ export function SalesOrdersScreen() {
     hasNextPage,
     fetchNextPage,
     refetch,
-  } = useInfiniteSalesOrders(debouncedSearch || undefined);
+  } = useInfiniteSalesOrders(
+    debouncedSearch || undefined,
+    undefined,
+    sortBy,
+  );
+
+  const activeSortLabel =
+    ORDER_SORT_OPTIONS.find((f) => f.value === sortBy)?.label || '';
 
   const orders = useMemo(
     () => data?.pages.flatMap((page) => page.items) ?? [],
@@ -59,6 +95,13 @@ export function SalesOrdersScreen() {
 
   const renderOrderCard = ({ item }: { item: SalesOrderRecord }) => {
     const hasGst = Boolean(item.includeGst && Number(item.tax || 0) > 0);
+    const grandTotal = Number(item.grandTotal || 0);
+    const paidAmount = Number(item.advancePaid || 0);
+    const paidPercent =
+      grandTotal > 0
+        ? Math.min(100, Math.round((paidAmount / grandTotal) * 100))
+        : 0;
+    const paidLabel = `${paidPercent}% Paid`;
 
     return (
       <TouchableOpacity
@@ -73,15 +116,17 @@ export function SalesOrdersScreen() {
             <FileText size={15} color={colors.primary} />
             <Text style={styles.orderNumber}>{item.orderNumber}</Text>
           </View>
-          <View style={[styles.gstBadge, hasGst ? styles.gstOn : styles.gstOff]}>
-            <Text
-              style={[
-                styles.gstBadgeText,
-                hasGst ? styles.gstOnText : styles.gstOffText,
-              ]}
-            >
-              {hasGst ? 'GST' : 'No GST'}
-            </Text>
+          <View style={styles.badgesRow}>
+            <View style={[styles.gstBadge, styles.gstOff]}>
+              <Text style={[styles.gstBadgeText, styles.gstOffText]}>
+                {paidLabel}
+              </Text>
+            </View>
+            <View style={[styles.gstBadge, styles.gstOff]}>
+              <Text style={[styles.gstBadgeText, styles.gstOffText]}>
+                {hasGst ? 'GST' : 'No GST'}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -109,16 +154,50 @@ export function SalesOrdersScreen() {
   return (
     <View style={inventoryStyles.screen}>
       <View style={inventoryStyles.searchWrap}>
-        <View style={inventoryStyles.searchBox}>
-          <Search size={18} color={colors.textMuted} />
-          <TextInput
-            style={inventoryStyles.searchInput}
-            placeholder="Search order #, customer name or phone..."
-            placeholderTextColor={colors.textMuted}
-            value={search}
-            onChangeText={setSearch}
-          />
+        <View style={inventoryStyles.searchRow}>
+          <View style={inventoryStyles.searchBox}>
+            <Search size={18} color={colors.textMuted} />
+            <TextInput
+              style={inventoryStyles.searchInput}
+              placeholder="Search order #, customer name or phone..."
+              placeholderTextColor={colors.textMuted}
+              value={search}
+              onChangeText={setSearch}
+            />
+          </View>
+
+          <View ref={sortBtnRef} collapsable={false}>
+            <TouchableOpacity
+              style={[
+                styles.filterBtn,
+                sortBy !== 'DATE_DESC' && styles.filterBtnActive,
+              ]}
+              onPress={handleOpenSortMenu}
+              activeOpacity={0.8}
+            >
+              <ArrowUpDown
+                size={18}
+                color={
+                  sortBy !== 'DATE_DESC' ? colors.primary : colors.textSecondary
+                }
+              />
+            </TouchableOpacity>
+          </View>
         </View>
+
+        {sortBy !== 'DATE_DESC' ? (
+          <View style={inventoryStyles.filterChipRow}>
+            <TouchableOpacity
+              style={inventoryStyles.activeFilterChip}
+              onPress={() => setSortBy('DATE_DESC')}
+            >
+              <Text style={inventoryStyles.activeFilterText}>
+                Sort: {activeSortLabel}
+              </Text>
+              <X size={14} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+        ) : null}
       </View>
 
       {isLoading ? (
@@ -169,11 +248,113 @@ export function SalesOrdersScreen() {
         <Plus size={18} color={colors.textInverse} />
         <Text style={inventoryStyles.fabText}>New Sale</Text>
       </TouchableOpacity>
+
+      <Modal
+        visible={sortMenuOpen}
+        transparent
+        animationType="none"
+        onRequestClose={() => setSortMenuOpen(false)}
+      >
+        <TouchableOpacity
+          style={styles.menuBackdrop}
+          activeOpacity={1}
+          onPress={() => setSortMenuOpen(false)}
+        >
+          <View style={[styles.menuCard, { top: menuTop }]}>
+            {ORDER_SORT_OPTIONS.map((opt, idx) => {
+              const selected = sortBy === opt.value;
+              return (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[
+                    styles.filterOption,
+                    idx === ORDER_SORT_OPTIONS.length - 1 &&
+                      styles.filterOptionLast,
+                    selected && styles.filterOptionActive,
+                  ]}
+                  onPress={() => {
+                    setSortBy(opt.value);
+                    setSortMenuOpen(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.filterOptionText,
+                      selected && styles.filterOptionTextActive,
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                  {selected ? (
+                    <Check size={16} color={colors.primary} />
+                  ) : null}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  filterBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterBtnActive: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary,
+  },
+  menuBackdrop: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  menuCard: {
+    position: 'absolute',
+    right: spacing.lg,
+    width: 220,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: spacing.xs,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.14,
+    shadowRadius: 12,
+  },
+  filterOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 11,
+    paddingHorizontal: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
+  },
+  filterOptionLast: {
+    borderBottomWidth: 0,
+  },
+  filterOptionActive: {
+    backgroundColor: colors.primarySoft,
+  },
+  filterOptionText: {
+    fontSize: fontSize.sm,
+    color: colors.textPrimary,
+  },
+  filterOptionTextActive: {
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
+  },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.md,
@@ -188,6 +369,11 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   orderNumWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  badgesRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -248,6 +434,6 @@ const styles = StyleSheet.create({
   grandTotal: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
-    color: colors.primary,
+    color: colors.textPrimary,
   },
 });

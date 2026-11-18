@@ -16,9 +16,14 @@ import {
   StockEntryFormScreen,
 } from '../../modules/inventory';
 import {
+  CustomerDetailScreen,
   SalesOrderDetailScreen,
   SalesOrderFormScreen,
 } from '../../modules/orders';
+import {
+  CustomerPendingDetailScreen,
+  SupplierPurchaseDetailScreen,
+} from '../../modules/financial';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 
@@ -83,6 +88,11 @@ export default function RootNavigator() {
               options={{ title: 'Edit Product', presentation: 'modal' }}
             />
             <RootStack.Screen
+              name="CustomerDetail"
+              component={CustomerDetailScreen}
+              options={{ title: 'Customer Details' }}
+            />
+            <RootStack.Screen
               name="SalesOrderDetail"
               component={SalesOrderDetailScreen}
               options={{ title: 'Order & Invoice' }}
@@ -101,6 +111,16 @@ export default function RootNavigator() {
               name="InvoiceDetail"
               component={InvoiceDetailScreen}
               options={{ title: 'Invoice' }}
+            />
+            <RootStack.Screen
+              name="CustomerPendingDetail"
+              component={CustomerPendingDetailScreen}
+              options={{ title: 'Pending Invoices' }}
+            />
+            <RootStack.Screen
+              name="SupplierPurchaseDetail"
+              component={SupplierPurchaseDetailScreen}
+              options={{ title: 'Purchase & Expense Details' }}
             />
             <RootStack.Screen
               name="GrnForm"

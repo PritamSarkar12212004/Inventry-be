@@ -12,6 +12,7 @@ import type {
   CreateStockEntryPayload,
   CreateSupplierPayload,
   StockSourceType,
+  SupplierSortBy,
 } from '../types';
 
 export const INVENTORY_QUERY_KEYS = {
@@ -183,12 +184,12 @@ export function useSuppliers(search?: string) {
   });
 }
 
-export function useInfiniteSuppliers(search?: string) {
+export function useInfiniteSuppliers(search?: string, sortBy?: SupplierSortBy) {
   return useInfiniteQuery({
-    queryKey: ['inventory', 'infiniteSuppliers', search] as const,
+    queryKey: ['inventory', 'infiniteSuppliers', search, sortBy] as const,
     initialPageParam: 1,
     queryFn: async ({ pageParam }) => {
-      const res = await inventoryApi.getSuppliers(search, pageParam, 20);
+      const res = await inventoryApi.getSuppliers(search, pageParam, 20, sortBy);
       return {
         items: res.data?.items ?? [],
         pagination: res.data?.pagination,
@@ -199,6 +200,34 @@ export function useInfiniteSuppliers(search?: string) {
       if (!p || p.page >= p.totalPages) return undefined;
       return p.page + 1;
     },
+  });
+}
+
+export function useInfiniteSupplierStockEntries(
+  supplierName: string,
+  search?: string,
+) {
+  return useInfiniteQuery({
+    queryKey: ['inventory', 'supplierEntries', supplierName, search] as const,
+    initialPageParam: 1,
+    queryFn: async ({ pageParam }) => {
+      const res = await inventoryApi.getSupplierStockEntries({
+        supplierName,
+        page: pageParam,
+        limit: 20,
+        search: search || undefined,
+      });
+      return {
+        items: res.data?.items ?? [],
+        pagination: res.data?.pagination,
+      };
+    },
+    getNextPageParam: (lastPage) => {
+      const p = lastPage.pagination;
+      if (!p || p.page >= p.totalPages) return undefined;
+      return p.page + 1;
+    },
+    enabled: Boolean(supplierName),
   });
 }
 

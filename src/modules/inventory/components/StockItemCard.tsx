@@ -1,8 +1,8 @@
 import React, { memo } from 'react';
-import { Image, Text, TouchableOpacity, View } from 'react-native';
-import { Package } from 'lucide-react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Check, Package } from 'lucide-react-native';
 import { API_ORIGIN } from '../../../core/api';
-import { colors } from '../../../core/theme';
+import { colors, radius } from '../../../core/theme';
 import { INVENTORY_COPY } from '../data';
 import { inventoryStyles } from '../styles';
 import type { InventoryItem, ProductImageItem, StockStatus } from '../types';
@@ -10,6 +10,9 @@ import type { InventoryItem, ProductImageItem, StockStatus } from '../types';
 type StockItemCardProps = {
   item: InventoryItem;
   onPress: (item: InventoryItem) => void;
+  onLongPress?: (item: InventoryItem) => void;
+  selectionMode?: boolean;
+  selected?: boolean;
   showCategory?: boolean;
 };
 
@@ -46,6 +49,9 @@ function resolveImageUri(images: ProductImageItem[]): string | null {
 export const StockItemCard = memo(function StockItemCardComponent({
   item,
   onPress,
+  onLongPress,
+  selectionMode = false,
+  selected = false,
   showCategory = true,
 }: StockItemCardProps) {
   const statusTheme =
@@ -59,11 +65,26 @@ export const StockItemCard = memo(function StockItemCardComponent({
 
   return (
     <TouchableOpacity
-      style={inventoryStyles.card}
+      style={[inventoryStyles.card, selected && localStyles.cardSelected]}
       onPress={() => onPress(item)}
+      onLongPress={() => onLongPress?.(item)}
+      delayLongPress={180}
       activeOpacity={0.8}
     >
       <View style={inventoryStyles.cardBodyRow}>
+        {selectionMode ? (
+          <View
+            style={[
+              localStyles.checkbox,
+              selected && localStyles.checkboxChecked,
+            ]}
+          >
+            {selected ? (
+              <Check size={14} color={colors.textInverse} strokeWidth={3} />
+            ) : null}
+          </View>
+        ) : null}
+
         <View style={inventoryStyles.cardThumbWrap}>
           {imageUri ? (
             <Image
@@ -147,4 +168,26 @@ export const StockItemCard = memo(function StockItemCardComponent({
       </View>
     </TouchableOpacity>
   );
+});
+
+const localStyles = StyleSheet.create({
+  cardSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: radius.sm,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+  },
+  checkboxChecked: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
 });

@@ -15,6 +15,7 @@ import type {
   StockEntryResponse,
   StockMovementItem,
   SupplierItem,
+  SupplierSortBy,
 } from '../types';
 
 export type InventoryListParams = {
@@ -78,7 +79,12 @@ export const inventoryApi = {
       { name },
     ),
 
-  getSuppliers: (search?: string, page = 1, limit = 20) =>
+  getSuppliers: (
+    search?: string,
+    page = 1,
+    limit = 20,
+    sortBy?: SupplierSortBy,
+  ) =>
     apiGet<{
       success: boolean;
       data: { items: SupplierItem[]; pagination?: PaginationMeta };
@@ -86,7 +92,19 @@ export const inventoryApi = {
       page,
       limit,
       ...(search ? { search } : {}),
+      ...(sortBy && sortBy !== 'NEWEST' ? { sortBy } : {}),
     }),
+
+  getSupplierStockEntries: (params: {
+    supplierName: string;
+    page?: number;
+    limit?: number;
+    search?: string;
+  }) =>
+    apiGet<{
+      success: boolean;
+      data: { items: StockEntryRecord[]; pagination?: PaginationMeta };
+    }>(INVENTORY_PATHS.stockEntries, params),
 
   createSupplier: (payload: CreateSupplierPayload) =>
     apiPost<{ success: boolean; data: SupplierItem }, CreateSupplierPayload>(

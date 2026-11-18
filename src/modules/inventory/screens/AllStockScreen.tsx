@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   FlatList,
   RefreshControl,
@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   LayoutGrid,
@@ -21,6 +21,11 @@ import { API_ORIGIN } from '../../../core/api';
 import type { RootStackParamList } from '../../../core/navigation/types';
 import { IosLoader } from '../../../core/components/IosLoader';
 import { useDebounce } from '../../../core/hooks/useDebounce';
+import {
+  stockSelectionStore,
+  useStockSelectionStore,
+  type SelectedStockItem,
+} from '../../../core/store/stockSelectionStore';
 import { colors } from '../../../core/theme';
 import {
   CategoryGridCard,
@@ -49,6 +54,15 @@ export function AllStockScreen() {
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const { selectionMode, selectedMap } = useStockSelectionStore();
+
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        stockSelectionStore.clear();
+      };
+    }, []),
+  );
 
   const debouncedSearch = useDebounce(search.trim(), 350);
 
@@ -127,10 +141,86 @@ export function AllStockScreen() {
     );
   };
 
-  const handleSelectCategoryFromGrid = (categoryName: string) => {
-    setSelectedCategory(categoryName);
-    setViewMode('list');
-  };
+  const toSelectionPayload = useCallback(
+    (item: InventoryItem): SelectedStockItem => ({
+      productId: item.productId,
+      productName: item.productName,
+      productCode: item.productCode,
+      currentStock: item.currentStock,
+      unit: item.unit,
+    }),
+    [],
+  );
+
+  const itemsByCategory = useMemo(() => {
+    const map = new Map<string, SelectedStockItem[]>();
+    for (const it of items) {
+      const cat = it.category || 'General';
+      const arr = map.get(cat);
+      const payload = toSelectionPayload(it);
+      if (arr) {
+        arr.push(payload);
+      } else {
+        map.set(cat, [payload]);
+      }
+    }
+    return map;
+  }, [items, toSelectionPayload]);
+
+  const selectedCountByCategory = useMemo(() => {
+    const counts: Record<string, number> = {};
+    if (!selectionMode) return counts;
+    for (const it of items) {
+      if (selectedMap[it.productId]) {
+        const cat = it.category || 'General';
+        counts[cat] = (counts[cat] || 0) + 1;
+      }
+    }
+    return counts;
+  }, [items, selectedMap, selectionMode]);
+
+  const handleSelectCategoryFromGrid = useCallback(
+    (categoryName: string) => {
+      if (selectionMode) {
+        stockSelectionStore.toggleCategoryItems(
+          itemsByCategory.get(categoryName) ?? [],
+        );
+        return;
+      }
+      setSelectedCategory(categoryName);
+      setViewMode('list');
+    },
+    [selectionMode, itemsByCategory],
+  );
+
+  const handleLongPressCategory = useCallback(
+    (categoryName: string) => {
+      stockSelectionStore.toggleCategoryItems(
+        itemsByCategory.get(categoryName) ?? [],
+      );
+    },
+    [itemsByCategory],
+  );
+
+  const handleItemLongPress = useCallback(
+    (selected: InventoryItem) => {
+      stockSelectionStore.startAndToggleItem(toSelectionPayload(selected));
+    },
+    [toSelectionPayload],
+  );
+
+  const handleItemPress = useCallback(
+    (selected: InventoryItem) => {
+      if (selectionMode) {
+        stockSelectionStore.toggleItem(toSelectionPayload(selected));
+        return;
+      }
+      navigation.navigate('ProductDetail', {
+        productId: selected.productId,
+      });
+    },
+    [selectionMode, toSelectionPayload, navigation],
+  );
 
   return (
     <View style={inventoryStyles.screen}>
@@ -202,10 +292,15 @@ export function AllStockScreen() {
         <FlatList
           key="grid-view"
           data={categorySummaries}
+          extraData={selectedCountByCategory}
           numColumns={2}
           keyExtractor={(cat) => cat.name}
           columnWrapperStyle={inventoryStyles.gridColumnWrapper}
           contentContainerStyle={inventoryStyles.gridContent}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          removeClippedSubviews
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
@@ -219,6 +314,9 @@ export function AllStockScreen() {
             <CategoryGridCard
               category={item}
               onPress={handleSelectCategoryFromGrid}
+              onLongPress={handleLongPressCategory}
+              selectionMode={selectionMode}
+              selectedCount={selectedCountByCategory[item.name] || 0}
             />
           )}
           onEndReached={handleLoadMore}
@@ -246,8 +344,13 @@ export function AllStockScreen() {
         <FlatList
           key="list-view"
           data={filteredItems}
+          extraData={selectedMap}
           keyExtractor={(item) => item.productId}
           contentContainerStyle={inventoryStyles.listContent}
+          initialNumToRender={12}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          removeClippedSubviews
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
@@ -260,11 +363,10 @@ export function AllStockScreen() {
           renderItem={({ item }) => (
             <StockItemCard
               item={item}
-              onPress={(selected) =>
-                navigation.navigate('ProductDetail', {
-                  productId: selected.productId,
-                })
-              }
+              selectionMode={selectionMode}
+              selected={Boolean(selectedMap[item.productId])}
+              onLongPress={handleItemLongPress}
+              onPress={handleItemPress}
             />
           )}
           onEndReached={handleLoadMore}
@@ -290,14 +392,16 @@ export function AllStockScreen() {
         />
       )}
 
-      <TouchableOpacity
-        style={inventoryStyles.fab}
-        onPress={() => handleOpenAddStock()}
-        activeOpacity={0.85}
-      >
-        <Plus size={18} color={colors.textInverse} />
-        <Text style={inventoryStyles.fabText}>{INVENTORY_COPY.addStockBtn}</Text>
-      </TouchableOpacity>
+      {!selectionMode ? (
+        <TouchableOpacity
+          style={inventoryStyles.fab}
+          onPress={() => handleOpenAddStock()}
+          activeOpacity={0.85}
+        >
+          <Plus size={18} color={colors.textInverse} />
+          <Text style={inventoryStyles.fabText}>{INVENTORY_COPY.addStockBtn}</Text>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }

@@ -71,11 +71,23 @@ export type CategoryItem = {
   name: string;
 };
 
+export type SupplierSortBy =
+  | 'NEWEST'
+  | 'PURCHASED_DESC'
+  | 'PURCHASED_ASC'
+  | 'NAME_ASC';
+
 export type SupplierItem = {
   id: string;
+  _id?: string;
   name: string;
   phone: string;
   supplierCode?: string;
+  gstin?: string | null;
+  address?: string;
+  city?: string;
+  totalEntries?: number;
+  totalPurchased?: number;
 };
 
 export type CreateSupplierPayload = {
@@ -121,6 +133,7 @@ export type StockEntryRecord = {
   transportCost?: number;
   otherCost?: number;
   totalPurchaseCost?: number;
+  totalAmount?: number;
   remarks?: string;
   items: Array<{
     product: string;

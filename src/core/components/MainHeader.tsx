@@ -1,8 +1,10 @@
 import React from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bell, Building2 } from 'lucide-react-native';
+import { Bell, Building2, Share2 } from 'lucide-react-native';
 import { API_ORIGIN } from '../api';
+import { popup } from '../store/popupStore';
+import { useStockSelectionStore } from '../store/stockSelectionStore';
 import { colors, fontSize, fontWeight, radius, spacing } from '../theme';
 import { useBusinessSettings, useMe } from '../../modules/auth/hooks';
 
@@ -13,6 +15,14 @@ type MainHeaderProps = {
 export function MainHeader({ onPressNotification }: MainHeaderProps) {
   const { data: business } = useBusinessSettings();
   const { data: user } = useMe();
+  const { selectedCount } = useStockSelectionStore();
+
+  const handlePressShare = () => {
+    popup.info(
+      'Share Stock (Under Development)',
+      `Sharing ${selectedCount} selected item${selectedCount === 1 ? '' : 's'} with stock name, code & quantity is currently under development.`,
+    );
+  };
 
   const companyName =
     business?.businessName || user?.name || 'WishBox Inventory';
@@ -43,13 +53,24 @@ export function MainHeader({ onPressNotification }: MainHeaderProps) {
           </Text>
         </View>
 
-        <TouchableOpacity
-          style={styles.iconBtn}
-          onPress={onPressNotification}
-          activeOpacity={0.75}
-        >
-          <Bell size={19} color={colors.textPrimary} />
-        </TouchableOpacity>
+        {selectedCount > 0 ? (
+          <TouchableOpacity
+            style={styles.shareBtn}
+            onPress={handlePressShare}
+            activeOpacity={0.75}
+          >
+            <Share2 size={17} color={colors.primary} />
+            <Text style={styles.shareCountText}>{selectedCount}</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={onPressNotification}
+            activeOpacity={0.75}
+          >
+            <Bell size={19} color={colors.textPrimary} />
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -105,5 +126,21 @@ const styles = StyleSheet.create({
     borderColor: colors.borderSubtle,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  shareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    height: 38,
+    paddingHorizontal: spacing.sm + 2,
+    borderRadius: radius.full,
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  shareCountText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
   },
 });

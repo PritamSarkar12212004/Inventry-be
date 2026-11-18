@@ -1,3 +1,4 @@
+export { CustomerDetailScreen } from './CustomerDetailScreen';
 export { CustomersScreen } from './CustomersScreen';
 export { SalesOrderDetailScreen } from './SalesOrderDetailScreen';
 export { SalesOrderFormScreen } from './SalesOrderFormScreen';
