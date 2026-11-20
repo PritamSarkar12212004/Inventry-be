@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Package, Pencil, Plus } from 'lucide-react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { API_ORIGIN } from '../../../core/api';
+import { getApiOrigin } from '../../../core/api';
 import type { RootStackParamList } from '../../../core/navigation/types';
 import {
   colors,
@@ -31,17 +31,19 @@ import {
 } from '../skeletons';
 import { useProductDetail, useProductStockEntries } from '../hooks';
 import type { ProductImageItem } from '../types';
+import { useProductExpenses } from '../../financial/hooks';
 import { useInfiniteSalesOrders } from '../../orders/hooks';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ProductDetail'>;
 type HistoryTab = 'ALL' | 'SELF_MADE' | 'PURCHASED' | 'SALES';
 
 function resolveAllImages(images: ProductImageItem[] = []): string[] {
+  const origin = getApiOrigin();
   return images
     .map((img) => {
       const raw = typeof img === 'string' ? img : img?.url;
       if (!raw) return null;
-      return raw.startsWith('http') ? raw : `${API_ORIGIN}${raw}`;
+      return raw.startsWith('http') ? raw : `${origin}${raw}`;
     })
     .filter((u): u is string => Boolean(u));
 }
@@ -53,6 +55,7 @@ export function ProductDetailScreen({ route, navigation }: Props) {
   const { data: product, isLoading } = useProductDetail(productId);
   const { data: entries = [], isLoading: isLoadingEntries } =
     useProductStockEntries(productId);
+  const { data: productExpenses = [] } = useProductExpenses(productId);
   const { data: salesPages, isLoading: isLoadingSales } =
     useInfiniteSalesOrders(undefined, productId);
 
@@ -260,19 +263,57 @@ export function ProductDetailScreen({ route, navigation }: Props) {
             )
           ) : isLoadingEntries ? (
             <HistoryRowsSkeleton />
-          ) : filteredEntries.length === 0 ? (
+          ) : filteredEntries.length === 0 &&
+            !(activeTab === 'SELF_MADE' && productExpenses.length > 0) ? (
             <Text style={styles.emptyText}>
               No stock entries found in this tab.
             </Text>
           ) : (
-            filteredEntries.map((entry) => (
-              <StockEntryHistoryCard
-                key={entry.id}
-                entry={entry}
-                productId={product.id}
-                unit={unit}
-              />
-            ))
+            <>
+              {filteredEntries.map((entry) => (
+                <StockEntryHistoryCard
+                  key={entry.id}
+                  entry={entry}
+                  productId={product.id}
+                  unit={unit}
+                />
+              ))}
+              {activeTab === 'SELF_MADE' && productExpenses.length > 0 ? (
+                <View style={styles.expensesSection}>
+                  <Text style={styles.expensesHeading}>
+                    In-House Production Expenses
+                  </Text>
+                  {productExpenses.map((exp) => (
+                    <View key={exp._id} style={styles.expenseCard}>
+                      <View style={styles.expenseTopRow}>
+                        <Text style={styles.expenseNum}>
+                          {exp.expenseNumber}
+                        </Text>
+                        <Text style={styles.expenseAmt}>
+                          ₹{Number(exp.totalAmount || 0).toLocaleString('en-IN')}
+                        </Text>
+                      </View>
+                      {exp.lineItems && exp.lineItems.length > 0 ? (
+                        <View style={styles.expenseLines}>
+                          {exp.lineItems.map((li, idx) => (
+                            <Text
+                              key={`${exp._id}-li-${idx}`}
+                              style={styles.expenseLineText}
+                            >
+                              • {li.key}: ₹
+                              {Number(li.amount || 0).toLocaleString('en-IN')}
+                            </Text>
+                          ))}
+                        </View>
+                      ) : null}
+                      {exp.notes ? (
+                        <Text style={styles.expenseNotes}>{exp.notes}</Text>
+                      ) : null}
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+            </>
           )}
         </View>
       </ScrollView>
@@ -428,8 +469,11 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.borderSubtle,
     backgroundColor: colors.surface,
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
   addBtn: {
+    flex: 1,
     minHeight: touchTarget.minHeight,
     flexDirection: 'row',
     gap: spacing.sm,
@@ -518,5 +562,52 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
+  },
+  expensesSection: {
+    marginTop: spacing.md,
+    gap: spacing.xs + 2,
+  },
+  expensesHeading: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  expenseCard: {
+    backgroundColor: colors.surfaceSubtle,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+  },
+  expenseTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  expenseNum: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  expenseAmt: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
+  },
+  expenseLines: {
+    marginTop: 6,
+    gap: 2,
+  },
+  expenseLineText: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+  },
+  expenseNotes: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    marginTop: 4,
   },
 });

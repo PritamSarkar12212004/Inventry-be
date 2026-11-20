@@ -5,6 +5,7 @@ export type {
   ExpenseBreakdownItem,
   ExpenseCategory,
   ExpenseItem,
+  ExpenseLineItem,
   ExpenseListResponse,
   ExpenseRecordDetail,
   FinancialOverviewData,

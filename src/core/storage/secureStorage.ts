@@ -8,8 +8,11 @@ export type AuthTokens = {
   refreshToken: string;
 };
 
+let cachedTokens: AuthTokens | null | undefined;
+
 export const secureStorage = {
   async saveTokens(tokens: AuthTokens): Promise<void> {
+    cachedTokens = tokens;
     await Keychain.setGenericPassword('auth_tokens', JSON.stringify(tokens), {
       service: AUTH_SERVICE,
       accessible: Keychain.ACCESSIBLE.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
@@ -17,22 +20,30 @@ export const secureStorage = {
   },
 
   async getTokens(): Promise<AuthTokens | null> {
+    if (cachedTokens !== undefined) {
+      return cachedTokens;
+    }
+
     const credentials = await Keychain.getGenericPassword({
       service: AUTH_SERVICE,
     });
 
     if (!credentials) {
+      cachedTokens = null;
       return null;
     }
 
     try {
-      return JSON.parse(credentials.password) as AuthTokens;
+      cachedTokens = JSON.parse(credentials.password) as AuthTokens;
+      return cachedTokens;
     } catch {
+      cachedTokens = null;
       return null;
     }
   },
 
   async clearTokens(): Promise<void> {
+    cachedTokens = null;
     await Keychain.resetGenericPassword({
       service: AUTH_SERVICE,
     });

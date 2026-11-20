@@ -20,12 +20,14 @@ import type { InventorySummaryData } from '../types';
 type StockOverviewBannerProps = {
   summary?: InventorySummaryData;
   isLoading?: boolean;
+  onPressOverview?: () => void;
   onPressAlerts?: () => void;
 };
 
 export function StockOverviewBanner({
   summary,
   isLoading = false,
+  onPressOverview,
   onPressAlerts,
 }: StockOverviewBannerProps) {
   if (isLoading && !summary) {
@@ -72,15 +74,25 @@ export function StockOverviewBanner({
     totalProducts > 0 ? Math.round((inStock / totalProducts) * 100) : 100;
 
   return (
-    <View style={styles.card}>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={onPressOverview}
+      activeOpacity={0.85}
+      disabled={!onPressOverview}
+    >
       <View style={styles.headerRow}>
         <View>
           <Text style={styles.eyebrow}>INVENTORY OVERVIEW</Text>
           <Text style={styles.heading}>Stock Summary</Text>
         </View>
 
-        <View style={styles.healthBadge}>
-          <Text style={styles.healthText}>{healthyPct}% Healthy</Text>
+        <View style={styles.headerRight}>
+          <View style={styles.healthBadge}>
+            <Text style={styles.healthText}>{healthyPct}% Healthy</Text>
+          </View>
+          {onPressOverview ? (
+            <ChevronRight size={16} color={colors.textMuted} />
+          ) : null}
         </View>
       </View>
 
@@ -142,7 +154,7 @@ export function StockOverviewBanner({
           <ChevronRight size={12} color={colors.textMuted} />
         </TouchableOpacity>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -161,6 +173,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.sm,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   eyebrow: {
     fontSize: 10,

@@ -14,6 +14,8 @@ export const FINANCIAL_QUERY_KEYS = {
     ['financial', 'customer-outstanding', search] as const,
   purchaseExpenseSummary: (search?: string) =>
     ['financial', 'purchase-expense-summary', search] as const,
+  productExpenses: (productId: string) =>
+    ['financial', 'product-expenses', productId] as const,
   expenses: (search?: string) => ['financial', 'expenses', search] as const,
 };
 
@@ -44,6 +46,21 @@ export function usePurchaseExpenseSummary(search?: string) {
       const res = await financialApi.getPurchaseExpenseSummary(search);
       return res.data;
     },
+  });
+}
+
+export function useProductExpenses(productId: string) {
+  return useQuery({
+    queryKey: FINANCIAL_QUERY_KEYS.productExpenses(productId),
+    queryFn: async () => {
+      const res = await financialApi.getExpenses({
+        productId,
+        page: 1,
+        limit: 50,
+      });
+      return res.data?.items ?? [];
+    },
+    enabled: Boolean(productId),
   });
 }
 

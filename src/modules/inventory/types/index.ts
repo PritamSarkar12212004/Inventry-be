@@ -13,6 +13,8 @@ export type {
   ProductAnalyticsPoint,
   ProductDetailData,
   ProductImageItem,
+  PurchaseCategory,
+  PurchaseSubEntryData,
   StockEntryRecord,
   StockEntryResponse,
   StockMovementItem,

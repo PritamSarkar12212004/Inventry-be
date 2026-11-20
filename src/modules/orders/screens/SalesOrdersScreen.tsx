@@ -231,10 +231,17 @@ export function SalesOrdersScreen() {
               <SalesOverviewBanner
                 overview={overviewData}
                 isLoading={overviewLoading}
+                onPressOverview={() =>
+                  navigation.navigate('SalesOverviewDetail')
+                }
               />
             ) : undefined
           }
           renderItem={renderOrderCard}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          removeClippedSubviews
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.4}
           ListFooterComponent={

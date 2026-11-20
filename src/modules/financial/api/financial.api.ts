@@ -26,20 +26,25 @@ export const financialApi = {
       search ? { search } : undefined,
     ),
 
-  getExpenses: (params?: { page?: number; limit?: number; search?: string }) =>
+  getExpenses: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    productId?: string;
+  }) =>
     apiGet<{ success: boolean; data: ExpenseListResponse }>(
-      '/financial/expenses',
+      '/expenses',
       params,
     ),
 
   createExpense: (payload: CreateExpensePayload) =>
     apiPost<{ success: boolean; data: ExpenseItem }, CreateExpensePayload>(
-      '/financial/expenses',
+      '/expenses',
       payload,
     ),
 
   deleteExpense: (id: string) =>
     apiDelete<{ success: boolean; message?: string }>(
-      `/financial/expenses/${id}`,
+      `/expenses/${id}`,
     ),
 };

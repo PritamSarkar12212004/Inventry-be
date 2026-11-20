@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
@@ -51,6 +51,8 @@ const topTabScreenOptions = {
     textTransform: 'none' as const,
   },
   tabBarScrollEnabled: true,
+  lazy: true,
+  lazyPreloadDistance: 0,
 };
 
 function StockTopTabs() {
@@ -155,13 +157,31 @@ const renderProfileIcon = ({ focused, color, size }: TabIconProps) => (
 export function MainTabs() {
   const insets = useSafeAreaInsets();
   const bottomPad = Math.max(insets.bottom, 10);
+  const [activeTab, setActiveTab] = useState<string>('HomeTab');
 
   return (
     <View style={styles.wrapper}>
-      <MainHeader />
+      <MainHeader
+        showDownload={
+          activeTab === 'StockTab' ||
+          activeTab === 'SalesTab' ||
+          activeTab === 'ReceiveTab'
+        }
+      />
       <BottomTab.Navigator
+        screenListeners={{
+          state: (e) => {
+            const tabState = e.data.state;
+            const currentRoute = tabState?.routes[tabState.index ?? 0]?.name;
+            if (currentRoute) {
+              setActiveTab(currentRoute);
+            }
+          },
+        }}
         screenOptions={{
           headerShown: false,
+          lazy: true,
+          freezeOnBlur: true,
           tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {

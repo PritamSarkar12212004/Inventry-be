@@ -18,14 +18,17 @@ import {
   ProductDetailScreen,
   ProductFormScreen,
   StockEntryFormScreen,
+  StockOverviewDetailScreen,
 } from '../../modules/inventory';
 import {
   CustomerDetailScreen,
   SalesOrderDetailScreen,
   SalesOrderFormScreen,
+  SalesOverviewDetailScreen,
 } from '../../modules/orders';
 import {
   CustomerPendingDetailScreen,
+  FinancialOverviewDetailScreen,
   SupplierPurchaseDetailScreen,
 } from '../../modules/financial';
 
@@ -75,6 +78,7 @@ export default function RootNavigator() {
             headerShadowVisible: false,
             contentStyle: { backgroundColor: colors.background },
             animation: 'fade',
+            freezeOnBlur: true,
           }}
         >
         {!isAuthenticated ? (
@@ -95,6 +99,21 @@ export default function RootNavigator() {
               name="Main"
               component={MainTabs}
               options={{ headerShown: false }}
+            />
+            <RootStack.Screen
+              name="StockOverviewDetail"
+              component={StockOverviewDetailScreen}
+              options={{ title: 'Inventory Overview' }}
+            />
+            <RootStack.Screen
+              name="SalesOverviewDetail"
+              component={SalesOverviewDetailScreen}
+              options={{ title: 'Sales Overview' }}
+            />
+            <RootStack.Screen
+              name="FinancialOverviewDetail"
+              component={FinancialOverviewDetailScreen}
+              options={{ title: 'Financial Overview' }}
             />
             <RootStack.Screen
               name="ProductDetail"

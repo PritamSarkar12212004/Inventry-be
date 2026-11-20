@@ -3,3 +3,4 @@ export { LowStockScreen } from './LowStockScreen';
 export { StockEntryFormScreen } from './StockEntryFormScreen';
 export { ProductDetailScreen } from './ProductDetailScreen';
 export { ProductFormScreen } from './ProductFormScreen';
+export { StockOverviewDetailScreen } from './StockOverviewDetailScreen';

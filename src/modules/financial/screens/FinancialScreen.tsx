@@ -14,19 +14,21 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   AlertCircle,
   ArrowUpDown,
+  Bell,
   Check,
   CheckCircle2,
   ChevronRight,
   Clock,
   Phone,
   Search,
-  Wallet,
   X,
 } from 'lucide-react-native';
 import type { RootStackParamList } from '../../../core/navigation/types';
 import { useDebounce } from '../../../core/hooks/useDebounce';
+import { popup } from '../../../core/store/popupStore';
 import { colors, fontSize, fontWeight, radius, spacing } from '../../../core/theme';
 import { inventoryStyles } from '../../inventory/styles';
+import { FinancialOverviewBanner } from '../components';
 import { useCustomerOutstanding, useFinancialOverview } from '../hooks';
 import {
   FinancialOverviewSkeleton,
@@ -116,9 +118,6 @@ export function FinancialScreen() {
     FINANCE_SORT_OPTIONS.find((opt) => opt.value === sortBy)?.label ??
     'Amount: High → Low';
 
-  const totalReceived = Number(overview?.totalReceived || 0);
-  const totalPurchases = Number(overview?.totalPurchases || 0);
-  const netCashflow = totalReceived - totalPurchases;
   const totalReceivable = Number(
     outstandingData?.totalReceivable ?? overview?.totalPendingDue ?? 0,
   );
@@ -137,64 +136,35 @@ export function FinancialScreen() {
 
   const listHeader = (
     <View>
-      <View style={styles.kpiGrid}>
-        <View style={styles.kpiCard}>
-          <Text style={styles.kpiLabel}>Total Sales</Text>
-          <Text style={styles.kpiVal}>{fmtMoney(overview?.totalSales)}</Text>
-          <Text style={styles.kpiSub}>
-            {overview?.totalOrders ?? 0} Orders
-          </Text>
-        </View>
-
-        <View style={styles.kpiCard}>
-          <Text style={styles.kpiLabel}>Received</Text>
-          <Text style={[styles.kpiVal, styles.greenText]}>
-            {fmtMoney(overview?.totalReceived)}
-          </Text>
-          <Text style={styles.kpiSub}>
-            Pending: {fmtMoney(overview?.totalPendingDue)}
-          </Text>
-        </View>
-
-        <View style={styles.kpiCardFull}>
-          <View>
-            <Text style={styles.kpiLabel}>Purchases</Text>
-            <Text style={styles.kpiSub}>
-              {overview?.totalPurchaseEntries ?? 0} Entries
-            </Text>
-          </View>
-          <Text style={styles.kpiVal}>
-            {fmtMoney(overview?.totalPurchases)}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.netCard}>
-        <View style={styles.netLeft}>
-          <Wallet size={18} color={colors.primary} />
-          <View>
-            <Text style={styles.netLabel}>Net Cashflow</Text>
-            <Text style={styles.netHint}>Received − Purchases</Text>
-          </View>
-        </View>
-        <Text
-          style={[
-            styles.netVal,
-            netCashflow < 0 ? styles.negText : styles.greenText,
-          ]}
-        >
-          {netCashflow < 0
-            ? `-₹${Math.abs(netCashflow).toLocaleString('en-IN')}`
-            : fmtMoney(netCashflow)}
-        </Text>
-      </View>
+      <FinancialOverviewBanner
+        overview={overview}
+        isLoading={overviewLoading}
+        onPressOverview={() => navigation.navigate('FinancialOverviewDetail')}
+      />
 
       <View style={styles.sectionHeader}>
-        <View>
-          <Text style={styles.sectionTitle}>Pending Customer Payments</Text>
-          <Text style={styles.sectionSub}>
-            {customers.length} customer{customers.length === 1 ? '' : 's'} with pending balance
-          </Text>
+        <View style={styles.sectionTopRow}>
+          <View style={styles.sectionTitleWrap}>
+            <Text style={styles.sectionTitle}>Pending Payments</Text>
+            <Text style={styles.sectionSub}>
+              {customers.length} customer{customers.length === 1 ? '' : 's'} with pending balance
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.notifyBtn}
+            onPress={() =>
+              popup.info(
+                'Payment Reminders',
+                customers.length > 0
+                  ? `${customers.length} pending balance ${customers.length === 1 ? 'account' : 'accounts'} totaling ${fmtMoney(totalReceivable)}.`
+                  : 'All customer payments are up to date.',
+              )
+            }
+            activeOpacity={0.75}
+            hitSlop={8}
+          >
+            <Bell size={18} color={colors.primary} />
+          </TouchableOpacity>
         </View>
         <View style={styles.receivableBadge}>
           <Text style={styles.receivableBadgeText}>
@@ -355,6 +325,10 @@ export function FinancialScreen() {
           item.customerId || `walkin-${item.phone || item.customerName}-${idx}`
         }
         renderItem={renderCustomerCard}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={7}
+        removeClippedSubviews
         ListHeaderComponent={listHeader}
         ListEmptyComponent={
           outstandingLoading ? (
@@ -509,11 +483,27 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
   },
   sectionHeader: {
+    alignItems: 'stretch',
+    gap: spacing.xs + 2,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+  sectionTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  sectionTitleWrap: {
+    flex: 1,
+  },
+  notifyBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.full,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sectionTitle: {
     fontSize: fontSize.md,
@@ -526,6 +516,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   receivableBadge: {
+    alignSelf: 'flex-start',
     backgroundColor: colors.dangerBg,
     paddingHorizontal: spacing.sm,
     paddingVertical: 5,

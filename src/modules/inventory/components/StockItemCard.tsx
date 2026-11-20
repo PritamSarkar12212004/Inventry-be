@@ -57,11 +57,6 @@ export const StockItemCard = memo(function StockItemCardComponent({
   const statusTheme =
     STATUS_STYLE_MAP[item.stockStatus] ?? STATUS_STYLE_MAP.IN_STOCK;
   const imageUri = resolveImageUri(item.images);
-  const threshold = Math.max(item.lowStockThreshold || 5, 1);
-  const fillPercent = Math.min(
-    100,
-    Math.round((item.currentStock / (threshold * 3)) * 100),
-  );
 
   return (
     <TouchableOpacity
@@ -136,18 +131,6 @@ export const StockItemCard = memo(function StockItemCardComponent({
                   item.stockStatus}
               </Text>
             </View>
-          </View>
-
-          <View style={inventoryStyles.stockBarTrack}>
-            <View
-              style={[
-                inventoryStyles.stockBarFill,
-                {
-                  width: `${fillPercent}%`,
-                  backgroundColor: statusTheme.text,
-                },
-              ]}
-            />
           </View>
 
           <View style={inventoryStyles.cardBottom}>

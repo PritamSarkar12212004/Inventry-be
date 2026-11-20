@@ -1,6 +1,11 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { IndianRupee, ShoppingBag, Wallet } from 'lucide-react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ChevronRight,
+  IndianRupee,
+  ShoppingBag,
+  Wallet,
+} from 'lucide-react-native';
 import { SkeletonBox } from '../../../core/components/SkeletonBox';
 import {
   colors,
@@ -15,6 +20,7 @@ import type { FinancialOverviewData } from '../../financial/types';
 type SalesOverviewBannerProps = {
   overview?: FinancialOverviewData;
   isLoading?: boolean;
+  onPressOverview?: () => void;
 };
 
 function fmtCompact(val?: number): string {
@@ -24,6 +30,7 @@ function fmtCompact(val?: number): string {
 export function SalesOverviewBanner({
   overview,
   isLoading = false,
+  onPressOverview,
 }: SalesOverviewBannerProps) {
   if (isLoading && !overview) {
     return (
@@ -68,15 +75,25 @@ export function SalesOverviewBanner({
       : 0;
 
   return (
-    <View style={styles.card}>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={onPressOverview}
+      activeOpacity={0.85}
+      disabled={!onPressOverview}
+    >
       <View style={styles.headerRow}>
         <View>
           <Text style={styles.eyebrow}>SALES OVERVIEW</Text>
           <Text style={styles.heading}>Orders Summary</Text>
         </View>
 
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{collectedPct}% Collected</Text>
+        <View style={styles.headerRight}>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{collectedPct}% Collected</Text>
+          </View>
+          {onPressOverview ? (
+            <ChevronRight size={16} color={colors.textMuted} />
+          ) : null}
         </View>
       </View>
 
@@ -136,7 +153,7 @@ export function SalesOverviewBanner({
           </Text>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -155,6 +172,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.sm,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   eyebrow: {
     fontSize: 10,

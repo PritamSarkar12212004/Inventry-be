@@ -11,6 +11,8 @@ import type {
   CreateProductPayload,
   CreateStockEntryPayload,
   CreateSupplierPayload,
+  PurchaseCategory,
+  PurchaseSubEntryData,
   StockSourceType,
   SupplierSortBy,
 } from '../types';
@@ -128,8 +130,15 @@ export function useCreateProductAndStock() {
       transportCost,
       otherCost,
       totalPurchaseCost,
+      purchaseCategory,
+      rawData,
+      readymadeData,
       remarks,
-    }: CreateProductAndStockInput) => {
+    }: CreateProductAndStockInput & {
+      purchaseCategory?: PurchaseCategory;
+      rawData?: PurchaseSubEntryData;
+      readymadeData?: PurchaseSubEntryData;
+    }) => {
       const created = await inventoryApi.createProduct(product);
       const productId = created.data._id;
 
@@ -143,6 +152,9 @@ export function useCreateProductAndStock() {
         transportCost,
         otherCost,
         totalPurchaseCost,
+        purchaseCategory,
+        rawData,
+        readymadeData,
         items: [{ productId, quantity }],
       });
 

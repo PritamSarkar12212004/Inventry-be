@@ -241,6 +241,7 @@ export function AllStockScreen() {
       <StockOverviewBanner
         summary={summaryData}
         isLoading={summaryLoading}
+        onPressOverview={() => navigation.navigate('StockOverviewDetail')}
         onPressAlerts={handleNavigateAlerts}
       />
     ) : undefined;

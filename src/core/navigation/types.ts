@@ -53,6 +53,9 @@ export type RootStackParamList = {
   BusinessSettings: undefined;
   PaymentQr: undefined;
   Main: undefined;
+  StockOverviewDetail: undefined;
+  SalesOverviewDetail: undefined;
+  FinancialOverviewDetail: undefined;
   ProductDetail: { productId: string };
   ProductForm: { productId?: string } | undefined;
   CustomerDetail: {

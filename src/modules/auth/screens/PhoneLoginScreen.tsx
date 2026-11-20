@@ -48,11 +48,7 @@ export function PhoneLoginScreen({ navigation }: Props) {
     sendOtp(
       { phone: cleaned },
       {
-        onSuccess: res => {
-          const devOtp = res?.data?.devOtp;
-          if (devOtp) {
-            popup.info('Dev OTP (Gateway Offline)', `Use OTP: ${devOtp}`);
-          }
+        onSuccess: () => {
           navigation.navigate('OtpVerify', { phone: cleaned });
         },
         onError: err => {

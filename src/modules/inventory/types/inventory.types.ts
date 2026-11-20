@@ -44,6 +44,7 @@ export type InventorySummaryData = {
   totalHoldQuantity: number;
   totalStockValue: number;
   totalCostValuation: number;
+  totalExpenses?: number;
   inStockCount: number;
   lowStockCount: number;
   outOfStockCount: number;
@@ -60,6 +61,14 @@ export type InventoryListResponse = {
   };
 };
 
+export type PurchaseCategory = 'RAW' | 'READYMADE' | 'BOTH';
+
+export type PurchaseSubEntryData = {
+  unitCost: number;
+  totalUnits: number;
+  productCost: number;
+};
+
 export type CreateStockEntryPayload = {
   remarks?: string;
   sourceType: StockSourceType;
@@ -70,6 +79,9 @@ export type CreateStockEntryPayload = {
   transportCost?: number;
   otherCost?: number;
   totalPurchaseCost?: number;
+  purchaseCategory?: PurchaseCategory;
+  rawData?: PurchaseSubEntryData;
+  readymadeData?: PurchaseSubEntryData;
   items: Array<{
     productId: string;
     quantity: number;

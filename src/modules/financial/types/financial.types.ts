@@ -10,8 +10,14 @@ export type FinancialOverviewData = {
   totalPendingDue: number;
   totalPurchaseEntries: number;
   totalPurchases: number;
+  totalMaterialCost?: number;
+  totalPurchaseTransportCost?: number;
+  totalPurchaseOtherCost?: number;
+  totalPurchaseExpenses?: number;
   totalExpenseCount: number;
   totalExpenses: number;
+  totalInHouseExpenses?: number;
+  totalAllExpenses?: number;
   totalStockValue: number;
   netCashflow: number;
 };
@@ -19,6 +25,7 @@ export type FinancialOverviewData = {
 export type ExpenseCategory =
   | 'RAW_MATERIAL'
   | 'PACKAGING'
+  | 'IN_HOUSE_PRODUCTION'
   | 'ELECTRICITY'
   | 'RENT'
   | 'SALARY'
@@ -26,6 +33,11 @@ export type ExpenseCategory =
   | 'MARKETING'
   | 'MAINTENANCE'
   | 'MISCELLANEOUS';
+
+export type ExpenseLineItem = {
+  key: string;
+  amount: number;
+};
 
 export type ExpenseItem = {
   _id: string;
@@ -37,6 +49,9 @@ export type ExpenseItem = {
   totalAmount: number;
   expenseDate: string;
   notes?: string;
+  product?: string | null;
+  productName?: string | null;
+  lineItems?: ExpenseLineItem[];
 };
 
 export type ExpenseListResponse = {
@@ -49,6 +64,9 @@ export type CreateExpensePayload = {
   title: string;
   amount: number;
   notes?: string;
+  productId?: string;
+  productName?: string;
+  lineItems?: ExpenseLineItem[];
 };
 
 export type CustomerOutstandingItem = {

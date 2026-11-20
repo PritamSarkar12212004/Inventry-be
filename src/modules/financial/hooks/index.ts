@@ -3,6 +3,7 @@ export {
   useCustomerOutstanding,
   useFinancialOverview,
   usePurchaseExpenseSummary,
+  useProductExpenses,
   useInfiniteExpenses,
   useCreateExpense,
   useDeleteExpense,

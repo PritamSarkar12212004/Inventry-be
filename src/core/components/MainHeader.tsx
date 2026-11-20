@@ -1,7 +1,7 @@
 import React from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bell, Building2, Share2 } from 'lucide-react-native';
+import { Bell, Building2, Download, Share2 } from 'lucide-react-native';
 import { getApiOrigin } from '../api';
 import { popup } from '../store/popupStore';
 import { useStockSelectionStore } from '../store/stockSelectionStore';
@@ -10,10 +10,16 @@ import { useBusinessSettings, useMe } from '../../modules/auth/hooks';
 import { SkeletonBox } from './SkeletonBox';
 
 type MainHeaderProps = {
+  showDownload?: boolean;
   onPressNotification?: () => void;
+  onPressDownload?: () => void;
 };
 
-export function MainHeader({ onPressNotification }: MainHeaderProps) {
+export function MainHeader({
+  showDownload = false,
+  onPressNotification,
+  onPressDownload,
+}: MainHeaderProps) {
   const { data: business, isLoading: isLoadingBusiness } = useBusinessSettings();
   const { data: user, isLoading: isLoadingMe } = useMe();
   const { selectedCount } = useStockSelectionStore();
@@ -25,6 +31,17 @@ export function MainHeader({ onPressNotification }: MainHeaderProps) {
     popup.info(
       'Share Stock (Under Development)',
       `Sharing ${selectedCount} selected item${selectedCount === 1 ? '' : 's'} with stock name, code & quantity is currently under development.`,
+    );
+  };
+
+  const handlePressDownload = () => {
+    if (onPressDownload) {
+      onPressDownload();
+      return;
+    }
+    popup.info(
+      'Download Stock (Under Development)',
+      'Exporting the stock list is currently under development.',
     );
   };
 
@@ -75,6 +92,14 @@ export function MainHeader({ onPressNotification }: MainHeaderProps) {
           >
             <Share2 size={17} color={colors.primary} />
             <Text style={styles.shareCountText}>{selectedCount}</Text>
+          </TouchableOpacity>
+        ) : showDownload ? (
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={handlePressDownload}
+            activeOpacity={0.75}
+          >
+            <Download size={19} color={colors.textPrimary} />
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
