@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRoute } from '@react-navigation/native';
 import { Building2, LogOut, Mail, Phone } from 'lucide-react-native';
 import type { AxiosError } from 'axios';
 import { API_ORIGIN } from '../../../core/api';
@@ -35,6 +36,8 @@ import type { ApiResponse } from '../types';
 const EMAIL_REGEX = /^\S+@\S+\.\S+$/;
 
 export function ProfileScreen() {
+  const route = useRoute();
+  const isEditMode = route.name === 'EditProfile';
   const { isProfileCompleted } = useAuthStore();
   const { data: user, isLoading: isLoadingMe } = useMe();
   const { data: business, isLoading: isLoadingBusiness } =
@@ -109,6 +112,7 @@ export function ProfileScreen() {
       <ProfileHeader
         title={AUTH_COPY.profile.title}
         subtitle={AUTH_COPY.profile.subtitle}
+        includeTopSafeArea={!isEditMode}
       />
 
       <KeyboardAvoidingView

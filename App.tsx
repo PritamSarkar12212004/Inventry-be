@@ -1,5 +1,6 @@
 import React from 'react';
 import { StatusBar, StyleSheet } from 'react-native';
+import codePush from '@revopush/react-native-code-push';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
   SafeAreaProvider,
@@ -15,7 +16,7 @@ import ErrorFallback from './src/core/layouts/ErrorFallback';
 import { IosPopupHost } from './src/core/components/IosPopupHost';
 import { queryClient } from './src/core/util/queryClient';
 
-export default function App() {
+function App() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <ErrorBoundary FallbackComponent={ErrorFallback}>
@@ -34,6 +35,11 @@ export default function App() {
     </GestureHandlerRootView>
   );
 }
+
+export default codePush({
+  checkFrequency: codePush.CheckFrequency.ON_APP_RESUME,
+  installMode: codePush.InstallMode.ON_NEXT_RESTART,
+})(App);
 
 const styles = StyleSheet.create({
   root: {

@@ -50,7 +50,7 @@ class SceneDelegate: RCTDefaultReactNativeFactoryDelegate, UIWindowSceneDelegate
     #if DEBUG
     RCTBundleURLProvider.sharedSettings().jsBundleURL(forBundleRoot: "index")
     #else
-    Bundle.main.url(forResource: "main", withExtension: "jsbundle")
+    CodePush.bundleURL()
     #endif
   }
 }

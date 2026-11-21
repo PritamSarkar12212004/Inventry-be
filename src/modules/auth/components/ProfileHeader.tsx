@@ -6,17 +6,26 @@ import { profileStyles } from '../styles';
 type ProfileHeaderProps = {
   title: string;
   subtitle: string;
+  includeTopSafeArea?: boolean;
 };
 
-export function ProfileHeader({ title, subtitle }: ProfileHeaderProps) {
+export function ProfileHeader({
+  title,
+  subtitle,
+  includeTopSafeArea = true,
+}: ProfileHeaderProps) {
+  const Container = includeTopSafeArea ? SafeAreaView : View;
   return (
-    <SafeAreaView edges={['top']} style={profileStyles.headerSafe}>
+    <Container
+      {...(includeTopSafeArea ? { edges: ['top'] as const } : {})}
+      style={profileStyles.headerSafe}
+    >
       <View style={profileStyles.headerContainer}>
         <View style={profileStyles.headerTextWrap}>
           <Text style={profileStyles.headerTitle}>{title}</Text>
           <Text style={profileStyles.headerSubtitle}>{subtitle}</Text>
         </View>
       </View>
-    </SafeAreaView>
+    </Container>
   );
 }

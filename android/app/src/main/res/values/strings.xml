@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">inventory</string>
+    <string moduleConfig="true" name="CodePushDeploymentKey">pwy3qyIw_3auxl_Lvwao781gohKXNkxaF_8DVg</string>
 </resources>

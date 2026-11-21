@@ -14,12 +14,13 @@ export const settingsApi = {
       UpdateBusinessSettingPayload
     >('/settings', payload),
 
-  uploadPaymentQr: (qrUri: string) => {
+  uploadPaymentQr: (qrUri: string, type: 'GST' | 'NON_GST' = 'GST') => {
     const formData = new FormData();
     const filename = qrUri.split('/').pop() || 'payment-qr.jpg';
     const ext = filename.split('.').pop()?.toLowerCase();
     const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
 
+    formData.append('type', type);
     formData.append('qr', {
       uri: qrUri,
       name: filename,

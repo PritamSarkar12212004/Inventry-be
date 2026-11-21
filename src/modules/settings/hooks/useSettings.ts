@@ -30,7 +30,13 @@ export function useUploadPaymentQr() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (qrUri: string) => settingsApi.uploadPaymentQr(qrUri),
+    mutationFn: ({
+      qrUri,
+      type = 'GST',
+    }: {
+      qrUri: string;
+      type?: 'GST' | 'NON_GST';
+    }) => settingsApi.uploadPaymentQr(qrUri, type),
     onSuccess: (res) => {
       queryClient.setQueryData(SETTINGS_QUERY_KEY, res.data);
       queryClient.invalidateQueries({ queryKey: ['auth', 'business'] });
