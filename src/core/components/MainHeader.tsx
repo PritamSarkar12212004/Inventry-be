@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Bell, Building2, Download, Share2 } from 'lucide-react-native';
@@ -6,23 +6,47 @@ import { getApiOrigin } from '../api';
 import { popup } from '../store/popupStore';
 import { useStockSelectionStore } from '../store/stockSelectionStore';
 import { colors, fontSize, fontWeight, radius, spacing } from '../theme';
+import { downloadAndShareExcel } from '../util/downloadExcel';
 import { useBusinessSettings, useMe } from '../../modules/auth/hooks';
+import { IosLoader } from './IosLoader';
 import { SkeletonBox } from './SkeletonBox';
 
+export type ExcelExportTarget = 'STOCK' | 'SALES' | 'FINANCE';
+
+const EXPORT_CONFIG: Record<
+  ExcelExportTarget,
+  { endpointPath: string; fileName: string; title: string }
+> = {
+  STOCK: {
+    endpointPath: '/inventory/export/excel',
+    fileName: `Stock_Report_${new Date().toISOString().slice(0, 10)}`,
+    title: 'Stock Excel Report',
+  },
+  SALES: {
+    endpointPath: '/sales-orders/export/excel',
+    fileName: `Sales_Report_${new Date().toISOString().slice(0, 10)}`,
+    title: 'Sales Excel Report',
+  },
+  FINANCE: {
+    endpointPath: '/financial/export/excel',
+    fileName: `Finance_Report_${new Date().toISOString().slice(0, 10)}`,
+    title: 'Finance Excel Report',
+  },
+};
+
 type MainHeaderProps = {
-  showDownload?: boolean;
+  exportTarget?: ExcelExportTarget | null;
   onPressNotification?: () => void;
-  onPressDownload?: () => void;
 };
 
 export function MainHeader({
-  showDownload = false,
+  exportTarget = null,
   onPressNotification,
-  onPressDownload,
 }: MainHeaderProps) {
   const { data: business, isLoading: isLoadingBusiness } = useBusinessSettings();
   const { data: user, isLoading: isLoadingMe } = useMe();
   const { selectedCount } = useStockSelectionStore();
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const isHeaderLoading =
     (isLoadingBusiness && !business) || (isLoadingMe && !user);
@@ -34,15 +58,19 @@ export function MainHeader({
     );
   };
 
-  const handlePressDownload = () => {
-    if (onPressDownload) {
-      onPressDownload();
-      return;
+  const handlePressDownload = async () => {
+    if (!exportTarget || isDownloading) return;
+    setIsDownloading(true);
+    try {
+      await downloadAndShareExcel(EXPORT_CONFIG[exportTarget]);
+    } catch (err) {
+      popup.error(
+        'Export Failed',
+        err instanceof Error ? err.message : 'Unable to generate Excel file.',
+      );
+    } finally {
+      setIsDownloading(false);
     }
-    popup.info(
-      'Download Stock (Under Development)',
-      'Exporting the stock list is currently under development.',
-    );
   };
 
   const origin = getApiOrigin();
@@ -93,13 +121,18 @@ export function MainHeader({
             <Share2 size={17} color={colors.primary} />
             <Text style={styles.shareCountText}>{selectedCount}</Text>
           </TouchableOpacity>
-        ) : showDownload ? (
+        ) : exportTarget ? (
           <TouchableOpacity
             style={styles.iconBtn}
             onPress={handlePressDownload}
+            disabled={isDownloading}
             activeOpacity={0.75}
           >
-            <Download size={19} color={colors.textPrimary} />
+            {isDownloading ? (
+              <IosLoader size={18} color={colors.primary} />
+            ) : (
+              <Download size={19} color={colors.textPrimary} />
+            )}
           </TouchableOpacity>
         ) : (
           <TouchableOpacity

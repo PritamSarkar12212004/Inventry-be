@@ -3,6 +3,7 @@ import { Image, Text, TouchableOpacity, View } from 'react-native';
 import { Building2, Camera } from 'lucide-react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { colors } from '../../../core/theme';
+import { compressImageUri } from '../../../core/util/imageCompressor';
 import { profileStyles } from '../styles';
 
 type CompanyLogoPickerProps = {
@@ -20,12 +21,15 @@ export function CompanyLogoPicker({
     const result = await launchImageLibrary({
       mediaType: 'photo',
       quality: 0.8,
+      maxWidth: 1200,
+      maxHeight: 1200,
       selectionLimit: 1,
     });
 
     const uri = result.assets?.[0]?.uri;
     if (uri) {
-      onSelectLogo(uri);
+      const compressed = await compressImageUri(uri);
+      onSelectLogo(compressed);
     }
   };
 

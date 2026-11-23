@@ -12,25 +12,19 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   ChevronRight,
-  Package,
   Phone,
-  Receipt,
   Search,
   ShoppingBag,
-  Truck,
-  Wallet,
   X,
 } from 'lucide-react-native';
 import type { RootStackParamList } from '../../../core/navigation/types';
 import { useDebounce } from '../../../core/hooks/useDebounce';
 import { colors, fontSize, fontWeight, radius, spacing } from '../../../core/theme';
 import { inventoryStyles } from '../../inventory/styles';
+import { SupplierOverviewBanner } from '../components';
 import { usePurchaseExpenseSummary } from '../hooks';
 import { SuppliersPurchasesSkeleton } from '../skeletons';
-import type {
-  ExpenseBreakdownItem,
-  SupplierSummaryItem,
-} from '../types';
+import type { SupplierSummaryItem } from '../types';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -56,16 +50,6 @@ function formatDate(dateStr?: string): string {
   });
 }
 
-function renderExpenseIcon(key: string) {
-  if (key === 'TRANSPORT') {
-    return <Truck size={18} color={colors.primary} />;
-  }
-  if (key === 'RAW_MATERIAL' || key === 'PACKAGING') {
-    return <Package size={18} color={colors.primary} />;
-  }
-  return <Receipt size={18} color={colors.primary} />;
-}
-
 export function SuppliersPurchasesScreen() {
   const navigation = useNavigation<NavProp>();
   const [search, setSearch] = useState('');
@@ -76,10 +60,6 @@ export function SuppliersPurchasesScreen() {
   );
 
   const summary = data?.summary;
-  const expenseBreakdown = useMemo(
-    () => data?.expenseBreakdown ?? [],
-    [data?.expenseBreakdown],
-  );
   const suppliers = useMemo(() => data?.suppliers ?? [], [data?.suppliers]);
   const allPurchases = useMemo(() => data?.purchases ?? [], [data?.purchases]);
 
@@ -103,15 +83,6 @@ export function SuppliersPurchasesScreen() {
     });
   };
 
-  const handleOpenExpenseCategory = (cat: ExpenseBreakdownItem) => {
-    navigation.navigate('SupplierPurchaseDetail', {
-      title: `${cat.label} Expenses`,
-      subtitle: `${cat.count} ${cat.count === 1 ? 'entry' : 'entries'}`,
-      mode: 'EXPENSE_CATEGORY',
-      category: cat,
-    });
-  };
-
   const handleOpenSupplier = (sup: SupplierSummaryItem) => {
     navigation.navigate('SupplierPurchaseDetail', {
       title: sup.supplierName,
@@ -123,98 +94,12 @@ export function SuppliersPurchasesScreen() {
 
   const listHeader = (
     <View>
-      <View style={styles.kpiGrid}>
-        <TouchableOpacity
-          style={styles.kpiCard}
-          activeOpacity={0.8}
-          onPress={handleOpenAllPurchases}
-        >
-          <View style={styles.kpiTopRow}>
-            <Text style={styles.kpiLabel}>Total Purchases</Text>
-            <ChevronRight size={14} color={colors.primary} />
-          </View>
-          <Text style={styles.kpiVal}>{fmtMoney(summary?.totalPurchases)}</Text>
-          <Text style={styles.kpiSub}>
-            {summary?.totalPurchaseEntries ?? 0} Entries • Tap for details
-          </Text>
-        </TouchableOpacity>
-
-        <View style={styles.kpiCard}>
-          <View style={styles.kpiTopRow}>
-            <Text style={styles.kpiLabel}>All Expenses</Text>
-            <Receipt size={14} color={colors.warning} />
-          </View>
-          <Text style={[styles.kpiVal, styles.warningText]}>
-            {fmtMoney(summary?.totalAllExpenses)}
-          </Text>
-          <Text style={styles.kpiSub}>
-            Transport + Other Costs
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.totalSpendCard}>
-        <View style={styles.totalSpendLeft}>
-          <Wallet size={18} color={colors.primary} />
-          <View style={styles.totalSpendTextWrap}>
-            <Text style={styles.totalSpendLabel}>Total Outflow (Purchases + Expenses)</Text>
-            <Text style={styles.totalSpendHint}>
-              Material: {fmtMoney(summary?.totalMaterialCost)} • Transport:{' '}
-              {fmtMoney(summary?.totalTransportCost)}
-            </Text>
-          </View>
-        </View>
-        <Text style={styles.totalSpendVal}>
-          {fmtMoney(summary?.grandTotalSpend)}
-        </Text>
-      </View>
-
-      <View style={styles.sectionHeader}>
-        <View>
-          <Text style={styles.sectionTitle}>Expenses Breakdown</Text>
-          <Text style={styles.sectionSub}>
-            Transport, other purchase costs & operational expenses
-          </Text>
-        </View>
-      </View>
-
-      {expenseBreakdown.length === 0 ? (
-        <View style={styles.emptyMiniCard}>
-          <Text style={styles.emptyMiniText}>
-            No transport or other expenses recorded yet.
-          </Text>
-        </View>
-      ) : (
-        <View style={styles.expenseList}>
-          {expenseBreakdown.map((cat) => (
-            <TouchableOpacity
-              key={cat.key}
-              style={styles.expenseCard}
-              activeOpacity={0.8}
-              onPress={() => handleOpenExpenseCategory(cat)}
-            >
-              <View style={styles.expenseIconBox}>
-                {renderExpenseIcon(cat.key)}
-              </View>
-              <View style={styles.expenseMeta}>
-                <Text style={styles.expenseLabel}>{cat.label}</Text>
-                <Text style={styles.expenseCount}>
-                  {cat.count} {cat.count === 1 ? 'record' : 'records'}
-                </Text>
-              </View>
-              <View style={styles.expenseRight}>
-                <Text style={styles.expenseAmount}>
-                  {fmtMoney(cat.totalAmount)}
-                </Text>
-                <View style={styles.viewDetailsRow}>
-                  <Text style={styles.viewDetailsText}>Details</Text>
-                  <ChevronRight size={13} color={colors.primary} />
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
+      <SupplierOverviewBanner
+        summary={summary}
+        suppliersCount={suppliers.length}
+        isLoading={isLoading}
+        onPressOverview={() => navigation.navigate('SupplierOverviewDetail')}
+      />
 
       <View style={styles.sectionHeader}>
         <View>

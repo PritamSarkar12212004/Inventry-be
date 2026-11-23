@@ -21,6 +21,7 @@ import { launchImageLibrary } from 'react-native-image-picker';
 import type { AxiosError } from 'axios';
 import { getApiOrigin } from '../../../core/api';
 import { popup } from '../../../core/store/popupStore';
+import { compressImageUri } from '../../../core/util/imageCompressor';
 import {
   colors,
   fontSize,
@@ -80,16 +81,19 @@ export function PaymentQrScreen() {
     const result = await launchImageLibrary({
       mediaType: 'photo',
       quality: 0.9,
+      maxWidth: 1200,
+      maxHeight: 1200,
       selectionLimit: 1,
     });
     const picked = result.assets?.[0]?.uri;
     if (!picked) return;
+    const compressed = await compressImageUri(picked);
     if (mode === 'GST') {
       setHasPickedGstQr(true);
-      setGstQrUri(picked);
+      setGstQrUri(compressed);
     } else {
       setHasPickedNonGstQr(true);
-      setNonGstQrUri(picked);
+      setNonGstQrUri(compressed);
     }
   };
 

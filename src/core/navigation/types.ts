@@ -56,6 +56,7 @@ export type RootStackParamList = {
   StockOverviewDetail: undefined;
   SalesOverviewDetail: undefined;
   FinancialOverviewDetail: undefined;
+  SupplierOverviewDetail: undefined;
   ProductDetail: { productId: string };
   ProductForm: { productId?: string } | undefined;
   CustomerDetail: {

@@ -29,6 +29,7 @@ import {
 import {
   CustomerPendingDetailScreen,
   FinancialOverviewDetailScreen,
+  SupplierOverviewDetailScreen,
   SupplierPurchaseDetailScreen,
 } from '../../modules/financial';
 
@@ -114,6 +115,11 @@ export default function RootNavigator() {
               name="FinancialOverviewDetail"
               component={FinancialOverviewDetailScreen}
               options={{ title: 'Financial Overview' }}
+            />
+            <RootStack.Screen
+              name="SupplierOverviewDetail"
+              component={SupplierOverviewDetailScreen}
+              options={{ title: 'Suppliers Overview' }}
             />
             <RootStack.Screen
               name="ProductDetail"

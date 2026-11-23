@@ -3,6 +3,10 @@ import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { Camera, ImagePlus, X } from 'lucide-react-native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { colors } from '../../../core/theme';
+import {
+  compressImageUri,
+  compressImageUris,
+} from '../../../core/util/imageCompressor';
 import { INVENTORY_COPY } from '../data';
 import { inventoryStyles } from '../styles';
 
@@ -22,6 +26,8 @@ export function ProductImagePicker({
     const result = await launchImageLibrary({
       mediaType: 'photo',
       quality: 0.8,
+      maxWidth: 1600,
+      maxHeight: 1600,
       selectionLimit: remaining,
     });
 
@@ -30,7 +36,8 @@ export function ProductImagePicker({
       .filter((u): u is string => Boolean(u));
 
     if (picked.length > 0) {
-      onChangeImages([...imageUris, ...picked].slice(0, 10));
+      const compressed = await compressImageUris(picked);
+      onChangeImages([...imageUris, ...compressed].slice(0, 10));
     }
   };
 
@@ -40,12 +47,15 @@ export function ProductImagePicker({
     const result = await launchCamera({
       mediaType: 'photo',
       quality: 0.8,
+      maxWidth: 1600,
+      maxHeight: 1600,
       saveToPhotos: false,
     });
 
     const uri = result.assets?.[0]?.uri;
     if (uri) {
-      onChangeImages([...imageUris, uri].slice(0, 10));
+      const compressed = await compressImageUri(uri);
+      onChangeImages([...imageUris, compressed].slice(0, 10));
     }
   };
 

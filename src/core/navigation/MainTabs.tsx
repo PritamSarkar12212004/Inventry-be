@@ -15,7 +15,7 @@ import type {
   SalesTopTabsParamList,
   StockTopTabsParamList,
 } from './types';
-import { MainHeader } from '../components/MainHeader';
+import { MainHeader, type ExcelExportTarget } from '../components/MainHeader';
 import { colors, fontSize, fontWeight, radius, shadows } from '../theme';
 import { ProfileTabScreen } from '../../modules/auth';
 import { DashboardScreen } from '../../modules/dashboard';
@@ -159,15 +159,18 @@ export function MainTabs() {
   const bottomPad = Math.max(insets.bottom, 10);
   const [activeTab, setActiveTab] = useState<string>('HomeTab');
 
+  const exportTarget: ExcelExportTarget | null =
+    activeTab === 'StockTab'
+      ? 'STOCK'
+      : activeTab === 'SalesTab'
+        ? 'SALES'
+        : activeTab === 'ReceiveTab'
+          ? 'FINANCE'
+          : null;
+
   return (
     <View style={styles.wrapper}>
-      <MainHeader
-        showDownload={
-          activeTab === 'StockTab' ||
-          activeTab === 'SalesTab' ||
-          activeTab === 'ReceiveTab'
-        }
-      />
+      <MainHeader exportTarget={exportTarget} />
       <BottomTab.Navigator
         screenListeners={{
           state: (e) => {
