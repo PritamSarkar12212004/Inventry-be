@@ -6,7 +6,9 @@ import { authStore } from '../store/authStore';
 // With `adb reverse tcp:3000 tcp:3000`, localhost:3000 works on both Emulator & USB phone.
 // If emulator loses adb reverse, we automatically fall back to 10.0.2.2:3000.
 
-export const API_ORIGIN = 'http://localhost:3001';
+export const API_ORIGIN = __DEV__
+  ? 'http://localhost:3001'
+  : 'https://inventry.wishboxpaperdecorcompany.com';
 const EMULATOR_FALLBACK_ORIGIN = 'http://10.0.2.2:3001';
 
 let activeOrigin = API_ORIGIN;
