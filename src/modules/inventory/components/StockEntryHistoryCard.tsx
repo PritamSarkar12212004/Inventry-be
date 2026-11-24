@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
 import {
@@ -14,17 +14,24 @@ type StockEntryHistoryCardProps = {
   entry: StockEntryRecord;
   productId: string;
   unit: string;
+  defaultExpanded?: boolean;
 };
 
 export function StockEntryHistoryCard({
   entry,
   productId,
   unit,
+  defaultExpanded = false,
 }: StockEntryHistoryCardProps) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
+
+  useEffect(() => {
+    setExpanded(defaultExpanded);
+  }, [defaultExpanded]);
 
   const matchedItem =
-    entry.items.find((i) => i.product === productId) ?? entry.items[0];
+    entry.items.find((i) => String(i.product) === String(productId)) ??
+    entry.items[0];
   const qty = matchedItem?.quantity ?? 0;
   const isPurchased = entry.sourceType === 'PURCHASED';
 
@@ -38,10 +45,15 @@ export function StockEntryHistoryCard({
   });
 
   const unitCost = entry.unitPurchaseCost ?? 0;
-  const productCost = Math.round(unitCost * qty * 100) / 100;
+  const rawCost = entry.rawData?.productCost ?? 0;
+  const readymadeCost = entry.readymadeData?.productCost ?? 0;
+  const hasBreakdown = Boolean(entry.rawData || entry.readymadeData);
+  const productCost = hasBreakdown
+    ? Math.round((rawCost + readymadeCost) * 100) / 100
+    : Math.round(unitCost * qty * 100) / 100;
   const transportCost = entry.transportCost ?? 0;
   const otherCost = entry.otherCost ?? 0;
-  const totalCost = entry.totalPurchaseCost ?? 0;
+  const totalCost = entry.totalPurchaseCost ?? entry.totalAmount ?? 0;
 
   return (
     <TouchableOpacity
@@ -66,11 +78,15 @@ export function StockEntryHistoryCard({
                   isPurchased ? styles.purchasedText : styles.selfText,
                 ]}
               >
-                {isPurchased ? 'Purchased' : 'In-House'}
+                {isPurchased ? 'External' : 'In-House'}
               </Text>
             </View>
           </View>
-          <Text style={styles.dateText}>{dateLabel}</Text>
+          <Text style={styles.dateText} numberOfLines={1}>
+            {isPurchased && entry.supplierName
+              ? `${entry.supplierName} • ${dateLabel}`
+              : dateLabel}
+          </Text>
         </View>
 
         <View style={styles.rightCol}>
@@ -96,6 +112,7 @@ export function StockEntryHistoryCard({
 
           {isPurchased ? (
             <>
+              <DetailRow label="Source" value="External (Purchased)" />
               <DetailRow
                 label="Supplier"
                 value={entry.supplierName || '—'}
@@ -106,6 +123,34 @@ export function StockEntryHistoryCard({
               />
               {entry.supplierGstin ? (
                 <DetailRow label="GST Number" value={entry.supplierGstin} />
+              ) : null}
+              {entry.purchaseCategory ? (
+                <DetailRow
+                  label="Purchase Type"
+                  value={
+                    entry.purchaseCategory === 'BOTH'
+                      ? 'Raw + Readymade'
+                      : entry.purchaseCategory === 'RAW'
+                        ? 'Raw Data'
+                        : 'Readymade Data'
+                  }
+                />
+              ) : null}
+              {entry.rawData ? (
+                <DetailRow
+                  label="Raw Material Cost"
+                  value={
+                    (entry.rawData.totalUnits ?? 0) > 0
+                      ? `₹ ${rawCost} (${entry.rawData.totalUnits} × ₹${entry.rawData.unitCost ?? 0})`
+                      : `₹ ${rawCost}`
+                  }
+                />
+              ) : null}
+              {entry.readymadeData ? (
+                <DetailRow
+                  label="Readymade Cost"
+                  value={`₹ ${readymadeCost} (${entry.readymadeData.totalUnits ?? 0} × ₹${entry.readymadeData.unitCost ?? 0})`}
+                />
               ) : null}
               <DetailRow label="Per Unit Cost" value={`₹ ${unitCost}`} />
               <DetailRow label="Total Units" value={`${qty} ${unit}`} />

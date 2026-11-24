@@ -7,10 +7,24 @@ export type BankDetails = {
   branch?: string;
 };
 
+export type PaymentReminderSettings = {
+  enabled?: boolean;
+  firstReminderDays?: number;
+  repeatEveryDays?: number;
+};
+
+export type StockReminderSettings = {
+  enabled?: boolean;
+  lowStockThreshold?: number;
+  repeatEveryDays?: number;
+};
+
 export type BusinessSettingData = {
   _id?: string;
   businessName: string;
   proprietorName?: string;
+  logoUrl?: string | null;
+  stampUrl?: string | null;
   paymentQrUrl?: string | null;
   upiId?: string | null;
   nonGstPaymentQrUrl?: string | null;
@@ -25,6 +39,8 @@ export type BusinessSettingData = {
   invoiceFooter?: string;
   termsAndConditions?: string;
   bankDetails?: BankDetails;
+  paymentReminderSettings?: PaymentReminderSettings;
+  stockReminderSettings?: StockReminderSettings;
 };
 
 export type UpdateBusinessSettingPayload = Partial<

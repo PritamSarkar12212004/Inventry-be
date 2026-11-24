@@ -1,6 +1,7 @@
+import { Platform } from 'react-native';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import Share from 'react-native-share';
-import { apiClient } from '../api';
+import { getApiOrigin } from '../api';
 import { secureStorage } from '../storage/secureStorage';
 
 const XLSX_MIME =
@@ -11,23 +12,34 @@ export async function downloadAndShareExcel(params: {
   fileName: string;
   title: string;
 }) {
-  const baseUrl = (apiClient.defaults.baseURL || '').replace(/\/+$/, '');
+  const origin = getApiOrigin().replace(/\/+$/, '');
   const cleanPath = params.endpointPath.startsWith('/')
     ? params.endpointPath
     : `/${params.endpointPath}`;
-  const url = `${baseUrl}${cleanPath}`;
   const tokens = await secureStorage.getTokens();
   const safeName = params.fileName.replace(/[^a-zA-Z0-9_-]/g, '_');
   const destPath = `${ReactNativeBlobUtil.fs.dirs.CacheDir}/${safeName}.xlsx`;
+  const headers = tokens?.accessToken
+    ? { Authorization: `Bearer ${tokens.accessToken}` }
+    : undefined;
 
-  const res = await ReactNativeBlobUtil.config({
-    fileCache: true,
-    path: destPath,
-  }).fetch('GET', url, {
-    ...(tokens?.accessToken
-      ? { Authorization: `Bearer ${tokens.accessToken}` }
-      : {}),
-  });
+  const fetchFromOrigin = (targetOrigin: string) =>
+    ReactNativeBlobUtil.config({
+      fileCache: true,
+      path: destPath,
+    }).fetch('GET', `${targetOrigin}/api/v1${cleanPath}`, headers);
+
+  let res;
+  try {
+    res = await fetchFromOrigin(origin);
+  } catch (err) {
+    if (Platform.OS === 'android' && origin.includes('localhost')) {
+      const fallbackOrigin = origin.replace('localhost', '10.0.2.2');
+      res = await fetchFromOrigin(fallbackOrigin);
+    } else {
+      throw err;
+    }
+  }
 
   const status = res.info().status;
   if (status < 200 || status >= 300) {

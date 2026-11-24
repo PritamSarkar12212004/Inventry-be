@@ -10,6 +10,7 @@ export { StockEntryHistoryCard } from './StockEntryHistoryCard';
 export { ProductStockChart } from './ProductStockChart';
 export { StockOverviewBanner } from './StockOverviewBanner';
 export { InHouseExpenseModal } from './InHouseExpenseModal';
+export { DamageProductModal } from './DamageProductModal';
 export {
   InHouseExpenseFields,
   createEmptyExpenseRow,

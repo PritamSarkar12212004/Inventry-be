@@ -13,6 +13,10 @@ import { ProfileScreen } from '../../modules/auth';
 import {
   BusinessSettingsScreen,
   PaymentQrScreen,
+  PaymentReminderScreen,
+  RemindersScreen,
+  SamplePdfScreen,
+  StockReminderScreen,
 } from '../../modules/settings';
 import {
   ProductDetailScreen,
@@ -174,12 +178,32 @@ export default function RootNavigator() {
             <RootStack.Screen
               name="BusinessSettings"
               component={BusinessSettingsScreen}
-              options={{ title: 'Business & Invoice Settings' }}
+              options={{ title: 'Business Info' }}
             />
             <RootStack.Screen
               name="PaymentQr"
               component={PaymentQrScreen}
               options={{ title: 'Payment & QR Code' }}
+            />
+            <RootStack.Screen
+              name="Reminders"
+              component={RemindersScreen}
+              options={{ title: 'Reminders' }}
+            />
+            <RootStack.Screen
+              name="PaymentReminder"
+              component={PaymentReminderScreen}
+              options={{ title: 'Payment Reminders' }}
+            />
+            <RootStack.Screen
+              name="SamplePdf"
+              component={SamplePdfScreen}
+              options={{ title: 'Sample PDF' }}
+            />
+            <RootStack.Screen
+              name="StockReminder"
+              component={StockReminderScreen}
+              options={{ title: 'Stock Reminders' }}
             />
             <RootStack.Screen
               name="GrnForm"

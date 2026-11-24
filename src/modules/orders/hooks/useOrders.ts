@@ -177,3 +177,16 @@ export function useDeleteSalesOrder() {
     },
   });
 }
+
+export function useSendCustomerPaymentReminder() {
+  return useMutation({
+    mutationFn: (customerId: string) =>
+      ordersApi.sendCustomerPaymentReminder(customerId),
+  });
+}
+
+export function useSendAllPaymentReminders() {
+  return useMutation({
+    mutationFn: () => ordersApi.sendAllPaymentReminders(),
+  });
+}

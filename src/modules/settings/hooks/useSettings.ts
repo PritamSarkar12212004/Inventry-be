@@ -43,3 +43,15 @@ export function useUploadPaymentQr() {
     },
   });
 }
+
+export function useUploadStamp() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (stampUri: string) => settingsApi.uploadStamp(stampUri),
+    onSuccess: (res) => {
+      queryClient.setQueryData(SETTINGS_QUERY_KEY, res.data);
+      queryClient.invalidateQueries({ queryKey: ['auth', 'business'] });
+    },
+  });
+}

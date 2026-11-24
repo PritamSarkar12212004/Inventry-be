@@ -3,4 +3,5 @@ export {
   useBusinessSettings,
   useUpdateBusinessSettings,
   useUploadPaymentQr,
+  useUploadStamp,
 } from './useSettings';

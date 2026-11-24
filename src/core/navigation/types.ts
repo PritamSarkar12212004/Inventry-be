@@ -52,6 +52,10 @@ export type RootStackParamList = {
   EditProfile: undefined;
   BusinessSettings: undefined;
   PaymentQr: undefined;
+  Reminders: undefined;
+  PaymentReminder: undefined;
+  SamplePdf: undefined;
+  StockReminder: undefined;
   Main: undefined;
   StockOverviewDetail: undefined;
   SalesOverviewDetail: undefined;

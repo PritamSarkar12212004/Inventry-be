@@ -8,4 +8,6 @@ export {
   useCreateCustomer,
   useRecordOrderPayment,
   useDeleteSalesOrder,
+  useSendCustomerPaymentReminder,
+  useSendAllPaymentReminders,
 } from './useOrders';

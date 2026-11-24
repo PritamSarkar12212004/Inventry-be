@@ -28,6 +28,8 @@ export const INVENTORY_QUERY_KEYS = {
     ['inventory', 'movements', productId] as const,
   stockEntries: (productId: string) =>
     ['inventory', 'stockEntries', productId] as const,
+  damageReports: (productId: string) =>
+    ['inventory', 'damageReports', productId] as const,
   analytics: (productId: string, period: AnalyticsPeriod, year?: number) =>
     ['inventory', 'analytics', productId, period, year] as const,
 };
@@ -304,6 +306,17 @@ export function useProductStockEntries(productId: string) {
   });
 }
 
+export function useProductDamageReports(productId: string) {
+  return useQuery({
+    queryKey: INVENTORY_QUERY_KEYS.damageReports(productId),
+    queryFn: async () => {
+      const res = await inventoryApi.getProductDamageReports(productId);
+      return res.data?.items ?? [];
+    },
+    enabled: Boolean(productId),
+  });
+}
+
 export function useProductAnalytics(
   productId: string,
   period: AnalyticsPeriod,
@@ -381,6 +394,32 @@ export function useDeleteProduct() {
     },
     onError: (err) => {
       inventoryLogger.error('deleteProduct:error', err);
+    },
+  });
+}
+
+export function useReportDamage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: {
+      productId: string;
+      quantity: number;
+      reason?: string;
+    }) => inventoryApi.reportDamage(payload),
+    onSuccess: (_data, variables) => {
+      inventoryLogger.info('reportDamage:success', variables.productId);
+      queryClient.invalidateQueries({ queryKey: INVENTORY_QUERY_KEYS.all });
+      queryClient.invalidateQueries({
+        queryKey: INVENTORY_QUERY_KEYS.detail(variables.productId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: INVENTORY_QUERY_KEYS.damageReports(variables.productId),
+      });
+      queryClient.invalidateQueries({ queryKey: ['financial'] });
+    },
+    onError: (err) => {
+      inventoryLogger.error('reportDamage:error', err);
     },
   });
 }

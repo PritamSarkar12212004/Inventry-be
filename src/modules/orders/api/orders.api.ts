@@ -65,4 +65,24 @@ export const ordersApi = {
       '/customers',
       payload,
     ),
+
+  sendCustomerPaymentReminder: (customerId: string) =>
+    apiPost<
+      {
+        success: boolean;
+        message?: string;
+        data?: { invoiceCount: number; totalDue: number };
+      },
+      Record<string, never>
+    >(`/sales-orders/customer/${customerId}/payment-reminder`, {}),
+
+  sendAllPaymentReminders: () =>
+    apiPost<
+      {
+        success: boolean;
+        message?: string;
+        data?: { totalCustomers: number; totalInvoices: number };
+      },
+      Record<string, never>
+    >('/sales-orders/payment-reminders/send-all', {}),
 };

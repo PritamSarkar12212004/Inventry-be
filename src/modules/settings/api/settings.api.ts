@@ -37,4 +37,27 @@ export const settingsApi = {
       },
     );
   },
+
+  uploadStamp: (stampUri: string) => {
+    const formData = new FormData();
+    const filename = stampUri.split('/').pop() || 'company-stamp.png';
+    const ext = filename.split('.').pop()?.toLowerCase();
+    const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
+
+    formData.append('stamp', {
+      uri: stampUri,
+      name: filename,
+      type: mime,
+    } as unknown as Blob);
+
+    return apiPost<{ success: boolean; data: BusinessSettingData }, FormData>(
+      '/settings/stamp',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      },
+    );
+  },
 };

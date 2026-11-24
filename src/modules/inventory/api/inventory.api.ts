@@ -7,6 +7,7 @@ import type {
   CreateProductResponse,
   CreateStockEntryPayload,
   CreateSupplierPayload,
+  DamageReportRecord,
   InventoryListResponse,
   InventorySummaryData,
   PaginationMeta,
@@ -135,6 +136,12 @@ export const inventoryApi = {
       data: { items?: StockEntryRecord[] };
     }>(INVENTORY_PATHS.stockEntries, { productId, limit: 50 }),
 
+  getProductDamageReports: (productId: string) =>
+    apiGet<{
+      success: boolean;
+      data: { items?: DamageReportRecord[] };
+    }>('/damage-reports', { productId, limit: 50 }),
+
   getProductAnalytics: (
     productId: string,
     period: AnalyticsPeriod,
@@ -186,4 +193,32 @@ export const inventoryApi = {
     apiDelete<{ success: boolean; message?: string }>(
       `${INVENTORY_PATHS.products}/${productId}?permanent=true`,
     ),
+
+  reportDamage: (payload: {
+    productId: string;
+    quantity: number;
+    reason?: string;
+  }) =>
+    apiPost<
+      { success: boolean; data: unknown },
+      {
+        damageType: string;
+        deductFromSaleableStock: boolean;
+        approveImmediately: boolean;
+        notes?: string;
+        items: Array<{ productId: string; quantity: number; reason?: string }>;
+      }
+    >('/damage-reports', {
+      damageType: 'STORAGE_DAMAGE',
+      deductFromSaleableStock: true,
+      approveImmediately: true,
+      notes: payload.reason || '',
+      items: [
+        {
+          productId: payload.productId,
+          quantity: payload.quantity,
+          reason: payload.reason || '',
+        },
+      ],
+    }),
 };

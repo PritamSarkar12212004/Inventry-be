@@ -1,5 +1,6 @@
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Linking,
   Modal,
@@ -29,7 +30,12 @@ import { useDebounce } from '../../../core/hooks/useDebounce';
 import { popup } from '../../../core/store/popupStore';
 import { colors, fontSize, fontWeight, radius, spacing } from '../../../core/theme';
 import { inventoryStyles } from '../../inventory/styles';
-import { useCustomerDetail, useInfiniteSalesOrders } from '../hooks';
+import type { AxiosError } from 'axios';
+import {
+  useCustomerDetail,
+  useInfiniteSalesOrders,
+  useSendCustomerPaymentReminder,
+} from '../hooks';
 import { SalesOrderListSkeleton } from '../skeletons';
 import type { OrderSortBy, SalesOrderRecord } from '../types';
 
@@ -76,6 +82,8 @@ export function CustomerDetailScreen({ route, navigation }: Props) {
     routeCustomer,
   );
   const customer = liveCustomer ?? routeCustomer;
+  const { mutate: sendReminder, isPending: isSendingReminder } =
+    useSendCustomerPaymentReminder();
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<OrderSortBy>('DATE_DESC');
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
@@ -89,32 +97,6 @@ export function CustomerDetailScreen({ route, navigation }: Props) {
       setSortMenuOpen(true);
     });
   };
-
-  const handleAlertPress = useCallback(() => {
-    popup.info(
-      'Customer Alert',
-      'Send message / payment reminder feature coming soon.',
-    );
-  }, []);
-
-  const renderAlertButton = useCallback(
-    () => (
-      <TouchableOpacity
-        style={styles.headerAlertBtn}
-        onPress={handleAlertPress}
-        activeOpacity={0.75}
-      >
-        <Bell size={19} color={colors.primary} />
-      </TouchableOpacity>
-    ),
-    [handleAlertPress],
-  );
-
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerRight: renderAlertButton,
-    });
-  }, [navigation, renderAlertButton]);
 
   const {
     data,
@@ -139,6 +121,64 @@ export function CustomerDetailScreen({ route, navigation }: Props) {
     [data],
   );
 
+  const totalSpent = Number(customer.totalSpent || 0);
+  const totalPaid = Number(customer.totalPaid || 0);
+  const totalDue = Math.max(0, totalSpent - totalPaid);
+  const hasPendingOrders = useMemo(
+    () =>
+      totalDue > 0 ||
+      orders.some(
+        (o) =>
+          o.fulfillmentStatus !== 'CANCELLED' &&
+          Number(o.grandTotal || 0) - Number(o.advancePaid || 0) > 0,
+      ),
+    [totalDue, orders],
+  );
+
+  const handleAlertPress = useCallback(() => {
+    if (isSendingReminder) return;
+    sendReminder(customer._id, {
+      onSuccess: (res) => {
+        popup.success(
+          'Reminder Sent',
+          res.message || 'Payment reminder sent to customer on WhatsApp.',
+        );
+      },
+      onError: (err) => {
+        const axiosErr = err as AxiosError<{ message?: string }>;
+        popup.error(
+          'Reminder Failed',
+          axiosErr.response?.data?.message ||
+            'Unable to send payment reminder.',
+        );
+      },
+    });
+  }, [customer._id, isSendingReminder, sendReminder]);
+
+  const renderAlertButton = useCallback(
+    () => (
+      <TouchableOpacity
+        style={styles.headerAlertBtn}
+        onPress={handleAlertPress}
+        activeOpacity={0.75}
+        disabled={isSendingReminder}
+      >
+        {isSendingReminder ? (
+          <ActivityIndicator size="small" color={colors.primary} />
+        ) : (
+          <Bell size={19} color={colors.primary} />
+        )}
+      </TouchableOpacity>
+    ),
+    [handleAlertPress, isSendingReminder],
+  );
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: hasPendingOrders ? renderAlertButton : undefined,
+    });
+  }, [navigation, hasPendingOrders, renderAlertButton]);
+
   const listRows = useMemo<ListRow[]>(() => {
     const rows: ListRow[] = [
       { kind: 'PROFILE', key: '__profile__' },
@@ -161,9 +201,6 @@ export function CustomerDetailScreen({ route, navigation }: Props) {
     }
   };
 
-  const totalSpent = Number(customer.totalSpent || 0);
-  const totalPaid = Number(customer.totalPaid || 0);
-  const totalDue = Math.max(0, totalSpent - totalPaid);
   const totalOrders = Number(customer.totalOrders ?? orders.length);
   const resolvedAddress =
     customer.billingAddress || customer.shippingAddress || customer.address;

@@ -10,8 +10,10 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
+  BellRing,
   Building2,
   ChevronRight,
+  FileText,
   LogOut,
   Mail,
   Phone,
@@ -134,7 +136,7 @@ export function ProfileTabScreen() {
             <View style={styles.menuInfo}>
               <Text style={styles.menuTitle}>Business & Invoice</Text>
               <Text style={styles.menuSub}>
-                GSTIN, PAN, address, bank details & PDF footer
+                GSTIN, PAN, address, bank details, stamp & PDF footer
               </Text>
             </View>
             <ChevronRight size={18} color={colors.textMuted} />
@@ -154,6 +156,44 @@ export function ProfileTabScreen() {
               <Text style={styles.menuTitle}>Payment & QR Code</Text>
               <Text style={styles.menuSub}>
                 Upload UPI QR code & payment ID
+              </Text>
+            </View>
+            <ChevronRight size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+
+          <View style={styles.divider} />
+
+          <TouchableOpacity
+            style={styles.menuRow}
+            activeOpacity={0.75}
+            onPress={() => navigation.navigate('Reminders')}
+          >
+            <View style={styles.iconBox}>
+              <BellRing size={19} color={colors.primary} />
+            </View>
+            <View style={styles.menuInfo}>
+              <Text style={styles.menuTitle}>Reminders</Text>
+              <Text style={styles.menuSub}>
+                Payment & low stock alerts
+              </Text>
+            </View>
+            <ChevronRight size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+
+          <View style={styles.divider} />
+
+          <TouchableOpacity
+            style={styles.menuRow}
+            activeOpacity={0.75}
+            onPress={() => navigation.navigate('SamplePdf')}
+          >
+            <View style={styles.iconBox}>
+              <FileText size={19} color={colors.primary} />
+            </View>
+            <View style={styles.menuInfo}>
+              <Text style={styles.menuTitle}>Sample PDF</Text>
+              <Text style={styles.menuSub}>
+                Preview invoice with your info & dummy items
               </Text>
             </View>
             <ChevronRight size={18} color={colors.textMuted} />

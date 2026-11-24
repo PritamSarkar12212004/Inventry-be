@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Modal,
   RefreshControl,
@@ -23,11 +24,13 @@ import {
   Search,
   X,
 } from 'lucide-react-native';
+import type { AxiosError } from 'axios';
 import type { RootStackParamList } from '../../../core/navigation/types';
 import { useDebounce } from '../../../core/hooks/useDebounce';
 import { popup } from '../../../core/store/popupStore';
 import { colors, fontSize, fontWeight, radius, spacing } from '../../../core/theme';
 import { inventoryStyles } from '../../inventory/styles';
+import { useSendAllPaymentReminders } from '../../orders/hooks';
 import { FinancialOverviewBanner } from '../components';
 import { useCustomerOutstanding, useFinancialOverview } from '../hooks';
 import {
@@ -93,6 +96,8 @@ export function FinancialScreen() {
     isRefetching: outstandingRefetching,
     refetch: refetchOutstanding,
   } = useCustomerOutstanding(debouncedSearch || undefined);
+  const { mutate: sendAllReminders, isPending: isSendingAllReminders } =
+    useSendAllPaymentReminders();
 
   const customers = useMemo(() => {
     const raw = outstandingData?.customers ?? [];
@@ -152,18 +157,42 @@ export function FinancialScreen() {
           </View>
           <TouchableOpacity
             style={styles.notifyBtn}
-            onPress={() =>
-              popup.info(
-                'Payment Reminders',
-                customers.length > 0
-                  ? `${customers.length} pending balance ${customers.length === 1 ? 'account' : 'accounts'} totaling ${fmtMoney(totalReceivable)}.`
-                  : 'All customer payments are up to date.',
-              )
-            }
+            onPress={() => {
+              if (isSendingAllReminders) return;
+              if (customers.length === 0) {
+                popup.info(
+                  'Payment Reminders',
+                  'All customer payments are up to date.',
+                );
+                return;
+              }
+              sendAllReminders(undefined, {
+                onSuccess: (res) => {
+                  popup.success(
+                    'Reminders Started',
+                    res.message ||
+                      `Sending reminders to ${customers.length} customers (20s gap).`,
+                  );
+                },
+                onError: (err) => {
+                  const axiosErr = err as AxiosError<{ message?: string }>;
+                  popup.error(
+                    'Reminder Failed',
+                    axiosErr.response?.data?.message ||
+                      'Unable to start bulk payment reminders.',
+                  );
+                },
+              });
+            }}
             activeOpacity={0.75}
             hitSlop={8}
+            disabled={isSendingAllReminders}
           >
-            <Bell size={18} color={colors.primary} />
+            {isSendingAllReminders ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Bell size={18} color={colors.primary} />
+            )}
           </TouchableOpacity>
         </View>
         <View style={styles.receivableBadge}>

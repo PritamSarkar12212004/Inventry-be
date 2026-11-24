@@ -2,37 +2,16 @@ import React, { useState } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Bell, Building2, Download, Share2 } from 'lucide-react-native';
-import { getApiOrigin } from '../api';
+import type { AxiosError } from 'axios';
+import { apiPost, getApiOrigin } from '../api';
 import { popup } from '../store/popupStore';
 import { useStockSelectionStore } from '../store/stockSelectionStore';
 import { colors, fontSize, fontWeight, radius, spacing } from '../theme';
-import { downloadAndShareExcel } from '../util/downloadExcel';
 import { useBusinessSettings, useMe } from '../../modules/auth/hooks';
 import { IosLoader } from './IosLoader';
 import { SkeletonBox } from './SkeletonBox';
 
 export type ExcelExportTarget = 'STOCK' | 'SALES' | 'FINANCE';
-
-const EXPORT_CONFIG: Record<
-  ExcelExportTarget,
-  { endpointPath: string; fileName: string; title: string }
-> = {
-  STOCK: {
-    endpointPath: '/inventory/export/excel',
-    fileName: `Stock_Report_${new Date().toISOString().slice(0, 10)}`,
-    title: 'Stock Excel Report',
-  },
-  SALES: {
-    endpointPath: '/sales-orders/export/excel',
-    fileName: `Sales_Report_${new Date().toISOString().slice(0, 10)}`,
-    title: 'Sales Excel Report',
-  },
-  FINANCE: {
-    endpointPath: '/financial/export/excel',
-    fileName: `Finance_Report_${new Date().toISOString().slice(0, 10)}`,
-    title: 'Finance Excel Report',
-  },
-};
 
 type MainHeaderProps = {
   exportTarget?: ExcelExportTarget | null;
@@ -62,11 +41,22 @@ export function MainHeader({
     if (!exportTarget || isDownloading) return;
     setIsDownloading(true);
     try {
-      await downloadAndShareExcel(EXPORT_CONFIG[exportTarget]);
+      const res = await apiPost<
+        { success: boolean; message?: string },
+        { type: ExcelExportTarget }
+      >('/reports/excel-whatsapp', { type: exportTarget });
+      popup.success(
+        'Sent on WhatsApp',
+        res.message || "Excel download link sent to owner's WhatsApp.",
+      );
     } catch (err) {
+      const axiosErr = err as AxiosError<{ message?: string }>;
       popup.error(
         'Export Failed',
-        err instanceof Error ? err.message : 'Unable to generate Excel file.',
+        axiosErr.response?.data?.message ||
+          (err instanceof Error
+            ? err.message
+            : 'Unable to send Excel report.'),
       );
     } finally {
       setIsDownloading(false);

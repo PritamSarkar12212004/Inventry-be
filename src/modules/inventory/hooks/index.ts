@@ -14,7 +14,9 @@ export {
   useProductDetail,
   useProductMovements,
   useProductStockEntries,
+  useProductDamageReports,
   useProductAnalytics,
   useUpdateProductBasicDetails,
   useDeleteProduct,
+  useReportDamage,
 } from './useInventory';

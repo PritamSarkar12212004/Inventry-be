@@ -6,6 +6,7 @@ import React, {
   useState,
 } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Linking,
   Modal,
@@ -35,7 +36,11 @@ import { useDebounce } from '../../../core/hooks/useDebounce';
 import { popup } from '../../../core/store/popupStore';
 import { colors, fontSize, fontWeight, radius, spacing } from '../../../core/theme';
 import { inventoryStyles } from '../../inventory/styles';
-import { useInfiniteSalesOrders } from '../../orders/hooks';
+import type { AxiosError } from 'axios';
+import {
+  useInfiniteSalesOrders,
+  useSendCustomerPaymentReminder,
+} from '../../orders/hooks';
 import type { OrderSortBy, SalesOrderRecord } from '../../orders/types';
 import { useCustomerOutstanding } from '../hooks';
 import { PendingInvoicesSkeleton } from '../skeletons';
@@ -109,32 +114,8 @@ export function CustomerPendingDetailScreen({ route, navigation }: Props) {
   const [menuTop, setMenuTop] = useState(120);
   const sortBtnRef = useRef<React.ComponentRef<typeof View>>(null);
   const debouncedSearch = useDebounce(search.trim(), 300);
-
-  const handleAlertPress = useCallback(() => {
-    popup.info(
-      'Customer Alert',
-      'Send message / payment reminder feature coming soon.',
-    );
-  }, []);
-
-  const renderAlertButton = useCallback(
-    () => (
-      <TouchableOpacity
-        style={styles.headerAlertBtn}
-        onPress={handleAlertPress}
-        activeOpacity={0.75}
-      >
-        <Bell size={19} color={colors.primary} />
-      </TouchableOpacity>
-    ),
-    [handleAlertPress],
-  );
-
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerRight: renderAlertButton,
-    });
-  }, [navigation, renderAlertButton]);
+  const { mutate: sendReminder, isPending: isSendingReminder } =
+    useSendCustomerPaymentReminder();
 
   const effectiveSearch = customer.customerId
     ? debouncedSearch
@@ -158,13 +139,63 @@ export function CustomerPendingDetailScreen({ route, navigation }: Props) {
 
   const orders = useMemo(() => {
     const raw = data?.pages.flatMap((p) => p.items) ?? [];
-    if (customer.customerId) return raw;
-    return raw.filter(
-      (o) =>
-        (customer.phone && o.customerSnapshot?.phone === customer.phone) ||
-        o.customerSnapshot?.name === customer.customerName,
-    );
-  }, [data, customer.customerId, customer.phone, customer.customerName]);
+    return raw.filter((o) => o.fulfillmentStatus !== 'CANCELLED');
+  }, [data]);
+
+  const hasPending =
+    Number(customer.outstanding || 0) > 0 || orders.length > 0;
+
+  const handleAlertPress = useCallback(() => {
+    if (isSendingReminder) return;
+    if (!customer.customerId) {
+      popup.error(
+        'Cannot Send Reminder',
+        'Customer profile is not linked to this pending account.',
+      );
+      return;
+    }
+
+    sendReminder(customer.customerId, {
+      onSuccess: (res) => {
+        popup.success(
+          'Reminder Sent',
+          res.message || 'Payment reminder sent to customer on WhatsApp.',
+        );
+      },
+      onError: (err) => {
+        const axiosErr = err as AxiosError<{ message?: string }>;
+        popup.error(
+          'Reminder Failed',
+          axiosErr.response?.data?.message ||
+            'Unable to send payment reminder.',
+        );
+      },
+    });
+  }, [customer.customerId, isSendingReminder, sendReminder]);
+
+  const renderAlertButton = useCallback(
+    () => (
+      <TouchableOpacity
+        style={styles.headerAlertBtn}
+        onPress={handleAlertPress}
+        activeOpacity={0.75}
+        disabled={isSendingReminder}
+      >
+        {isSendingReminder ? (
+          <ActivityIndicator size="small" color={colors.primary} />
+        ) : (
+          <Bell size={19} color={colors.primary} />
+        )}
+      </TouchableOpacity>
+    ),
+    [handleAlertPress, isSendingReminder],
+  );
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: hasPending ? renderAlertButton : undefined,
+    });
+  }, [navigation, hasPending, renderAlertButton]);
 
   const activeSortLabel =
     ORDER_SORT_OPTIONS.find((opt) => opt.value === sortBy)?.label ??

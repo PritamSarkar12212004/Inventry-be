@@ -5,6 +5,8 @@ export type {
   CreateProductResponse,
   CreateStockEntryPayload,
   CreateSupplierPayload,
+  DamageReportLineItem,
+  DamageReportRecord,
   InventoryItem,
   InventoryListResponse,
   InventorySummaryData,

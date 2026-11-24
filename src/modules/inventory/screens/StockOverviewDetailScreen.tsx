@@ -18,6 +18,7 @@ import {
   IndianRupee,
   Layers,
   PackageCheck,
+  ShieldAlert,
   TrendingUp,
   XCircle,
 } from 'lucide-react-native';
@@ -193,6 +194,12 @@ export function StockOverviewDetailScreen() {
           value: fmtNum(summary?.totalAvailableQuantity),
           icon: <CheckCircle2 size={17} color={colors.success} />,
           accent: colors.success,
+        },
+        {
+          label: 'Damaged Quantity',
+          value: fmtNum(summary?.totalDamagedQuantity),
+          icon: <ShieldAlert size={17} color={colors.danger} />,
+          accent: colors.danger,
         },
       ],
     },

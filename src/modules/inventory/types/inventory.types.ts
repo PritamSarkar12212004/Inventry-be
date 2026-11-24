@@ -132,6 +132,8 @@ export type ProductDetailData = {
   unit?: string;
   images: ProductImageItem[];
   currentStock: number;
+  availableStock?: number;
+  damagedQuantity?: number;
   purchaseCost?: number;
   defaultSellingPrice?: number;
   lowStockThreshold?: number;
@@ -149,11 +151,38 @@ export type StockMovementItem = {
   createdAt: string;
 };
 
+export type DamageReportLineItem = {
+  product: string;
+  productCode: string;
+  productName: string;
+  unit?: string;
+  quantity: number;
+  unitCost?: number;
+  estimatedLoss?: number;
+  reason?: string;
+};
+
+export type DamageReportRecord = {
+  _id: string;
+  damageNumber: string;
+  damageType: string;
+  reportDate?: string;
+  approvedAt?: string;
+  createdAt?: string;
+  totalQuantity: number;
+  totalEstimatedLoss?: number;
+  notes?: string;
+  items: DamageReportLineItem[];
+};
+
 export type StockEntryRecord = {
   id: string;
   entryNumber: string;
   entryDate: string;
   sourceType?: StockSourceType;
+  purchaseCategory?: PurchaseCategory;
+  rawData?: PurchaseSubEntryData;
+  readymadeData?: PurchaseSubEntryData;
   supplierName?: string | null;
   supplierPhone?: string | null;
   supplierGstin?: string | null;

@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Package, Pencil, Plus } from 'lucide-react-native';
+import { Package, Pencil, Plus, ShieldAlert } from 'lucide-react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { getApiOrigin } from '../../../core/api';
 import type { RootStackParamList } from '../../../core/navigation/types';
@@ -22,6 +22,7 @@ import {
   touchTarget,
 } from '../../../core/theme';
 import {
+  DamageProductModal,
   ProductStockChart,
   StockEntryHistoryCard,
 } from '../components';
@@ -29,13 +30,17 @@ import {
   HistoryRowsSkeleton,
   ProductDetailSkeleton,
 } from '../skeletons';
-import { useProductDetail, useProductStockEntries } from '../hooks';
+import {
+  useProductDamageReports,
+  useProductDetail,
+  useProductStockEntries,
+} from '../hooks';
 import type { ProductImageItem } from '../types';
 import { useProductExpenses } from '../../financial/hooks';
 import { useInfiniteSalesOrders } from '../../orders/hooks';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ProductDetail'>;
-type HistoryTab = 'ALL' | 'SELF_MADE' | 'PURCHASED' | 'SALES';
+type HistoryTab = 'ALL' | 'SELF_MADE' | 'PURCHASED' | 'SALES' | 'DAMAGED';
 
 function resolveAllImages(images: ProductImageItem[] = []): string[] {
   const origin = getApiOrigin();
@@ -51,10 +56,13 @@ function resolveAllImages(images: ProductImageItem[] = []): string[] {
 export function ProductDetailScreen({ route, navigation }: Props) {
   const { productId } = route.params;
   const [activeTab, setActiveTab] = useState<HistoryTab>('ALL');
+  const [damageModalOpen, setDamageModalOpen] = useState(false);
 
   const { data: product, isLoading } = useProductDetail(productId);
   const { data: entries = [], isLoading: isLoadingEntries } =
     useProductStockEntries(productId);
+  const { data: damageReports = [], isLoading: isLoadingDamage } =
+    useProductDamageReports(productId);
   const { data: productExpenses = [] } = useProductExpenses(productId);
   const { data: salesPages, isLoading: isLoadingSales } =
     useInfiniteSalesOrders(undefined, productId);
@@ -100,85 +108,187 @@ export function ProductDetailScreen({ route, navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.root} edges={['bottom']}>
+      {/* Top Material-style Tab Bar */}
+      <View style={styles.topTabBarWrap}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabsRow}
+        >
+          {(
+            [
+              { key: 'ALL', label: 'All' },
+              { key: 'SELF_MADE', label: 'In-House' },
+              { key: 'PURCHASED', label: 'Purchased' },
+              { key: 'SALES', label: 'Sales' },
+              { key: 'DAMAGED', label: 'Damaged' },
+            ] as const
+          ).map((tab) => {
+            const active = activeTab === tab.key;
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                style={styles.tabBtn}
+                onPress={() => setActiveTab(tab.key)}
+                activeOpacity={0.75}
+              >
+                <Text
+                  style={[styles.tabText, active && styles.tabTextActive]}
+                >
+                  {tab.label}
+                </Text>
+                {active ? <View style={styles.tabIndicator} /> : null}
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Image Gallery */}
-        {imageList.length > 0 ? (
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.galleryRow}
-          >
-            {imageList.map((uri, idx) => (
-              <Image
-                key={`${uri}-${idx}`}
-                source={{ uri }}
-                style={styles.heroImage}
-                resizeMode="cover"
-              />
-            ))}
-          </ScrollView>
+        {activeTab === 'ALL' ? (
+          <>
+            {/* Image Gallery */}
+            {imageList.length > 0 ? (
+              <ScrollView
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.galleryRow}
+              >
+                {imageList.map((uri, idx) => (
+                  <Image
+                    key={`${uri}-${idx}`}
+                    source={{ uri }}
+                    style={styles.heroImage}
+                    resizeMode="cover"
+                  />
+                ))}
+              </ScrollView>
+            ) : (
+              <View style={styles.placeholderHero}>
+                <Package size={44} color={colors.primary} />
+              </View>
+            )}
+
+            {/* Header Info */}
+            <View style={styles.section}>
+              <View style={styles.metaRow}>
+                <Text style={styles.codeText}>{product.productCode}</Text>
+                <View style={styles.categoryBadge}>
+                  <Text style={styles.categoryText}>
+                    {product.category || 'General'}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.titleStockRow}>
+                <Text style={styles.title}>{product.name}</Text>
+                <View style={styles.stockBadgesCol}>
+                  <View style={styles.stockPill}>
+                    <Text style={styles.stockPillText}>
+                      Avail: {product.availableStock ?? product.currentStock}{' '}
+                      {unit}
+                    </Text>
+                  </View>
+                  {(product.damagedQuantity ?? 0) > 0 ? (
+                    <View style={styles.damagedPill}>
+                      <Text style={styles.damagedPillText}>
+                        Damaged: {product.damagedQuantity} {unit}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              </View>
+            </View>
+
+            {/* Month-wise & Year-wise Added vs Sold Chart */}
+            <ProductStockChart productId={product.id} unit={unit} />
+          </>
         ) : (
-          <View style={styles.placeholderHero}>
-            <Package size={44} color={colors.primary} />
+          <View style={styles.compactHeaderCard}>
+            <View style={styles.compactHeaderLeft}>
+              <Text style={styles.compactTitle} numberOfLines={1}>
+                {product.name}
+              </Text>
+              <Text style={styles.compactSub} numberOfLines={1}>
+                {product.productCode} • {product.category || 'General'}
+              </Text>
+            </View>
+            <View style={styles.stockBadgesCol}>
+              <View style={styles.stockPill}>
+                <Text style={styles.stockPillText}>
+                  Avail: {product.availableStock ?? product.currentStock} {unit}
+                </Text>
+              </View>
+              {(product.damagedQuantity ?? 0) > 0 ? (
+                <View style={styles.damagedPill}>
+                  <Text style={styles.damagedPillText}>
+                    Damaged: {product.damagedQuantity} {unit}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
           </View>
         )}
 
-        {/* Header Info */}
+        {/* Tab Content */}
         <View style={styles.section}>
-          <View style={styles.metaRow}>
-            <Text style={styles.codeText}>{product.productCode}</Text>
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryText}>
-                {product.category || 'General'}
+
+          {activeTab === 'DAMAGED' ? (
+            isLoadingDamage ? (
+              <HistoryRowsSkeleton />
+            ) : damageReports.length === 0 ? (
+              <Text style={styles.emptyText}>
+                No damaged stock recorded for this product.
               </Text>
-            </View>
-          </View>
-          <View style={styles.titleStockRow}>
-            <Text style={styles.title}>{product.name}</Text>
-            <View style={styles.stockPill}>
-              <Text style={styles.stockPillText}>
-                {product.currentStock} {unit}
-              </Text>
-            </View>
-          </View>
-        </View>
+            ) : (
+              damageReports.map((rep) => {
+                const dmgLine = rep.items.find(
+                  (i) => String(i.product) === String(product.id),
+                );
+                const qty = dmgLine?.quantity ?? rep.totalQuantity ?? 0;
+                const loss =
+                  dmgLine?.estimatedLoss ?? rep.totalEstimatedLoss ?? 0;
+                const ts = rep.approvedAt || rep.reportDate || rep.createdAt;
+                const dateTimeLabel = ts
+                  ? new Date(ts).toLocaleString('en-IN', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
+                  : '—';
+                const reasonText = dmgLine?.reason || rep.notes || '';
 
-        {/* Month-wise & Year-wise Added vs Sold Chart */}
-        <ProductStockChart productId={product.id} unit={unit} />
-
-        {/* Tabs: All | In-House | Purchased | Sales */}
-        <View style={styles.section}>
-          <View style={styles.tabsRow}>
-            {(
-              [
-                { key: 'ALL', label: 'All' },
-                { key: 'SELF_MADE', label: 'In-House' },
-                { key: 'PURCHASED', label: 'Purchased' },
-                { key: 'SALES', label: 'Sales' },
-              ] as const
-            ).map((tab) => {
-              const active = activeTab === tab.key;
-              return (
-                <TouchableOpacity
-                  key={tab.key}
-                  style={[styles.tabBtn, active && styles.tabBtnActive]}
-                  onPress={() => setActiveTab(tab.key)}
-                >
-                  <Text
-                    style={[styles.tabText, active && styles.tabTextActive]}
-                  >
-                    {tab.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {activeTab === 'SALES' ? (
+                return (
+                  <View key={rep._id} style={styles.damageCard}>
+                    <View style={styles.saleTopRow}>
+                      <Text style={styles.saleOrderNum}>
+                        {rep.damageNumber}
+                      </Text>
+                      <View style={styles.damageQtyBadge}>
+                        <Text style={styles.damageQtyText}>
+                          -{qty} {dmgLine?.unit || unit}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={styles.saleMeta}>{dateTimeLabel}</Text>
+                    <View style={styles.saleBottomRow}>
+                      <Text style={styles.saleQtyText} numberOfLines={2}>
+                        {reasonText || 'Damaged stock entry'}
+                      </Text>
+                      <Text style={styles.damageLossText}>
+                        Loss: ₹{Number(loss || 0).toLocaleString('en-IN')}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })
+            )
+          ) : activeTab === 'SALES' ? (
             isLoadingSales ? (
               <HistoryRowsSkeleton />
             ) : salesOrders.length === 0 ? (
@@ -276,6 +386,7 @@ export function ProductDetailScreen({ route, navigation }: Props) {
                   entry={entry}
                   productId={product.id}
                   unit={unit}
+                  defaultExpanded={activeTab === 'PURCHASED'}
                 />
               ))}
               {activeTab === 'SELF_MADE' && productExpenses.length > 0 ? (
@@ -334,7 +445,25 @@ export function ProductDetailScreen({ route, navigation }: Props) {
           <Plus size={18} color={colors.textInverse} />
           <Text style={commonStyles.primaryButtonText}>Add Stock</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.damageBtn}
+          onPress={() => setDamageModalOpen(true)}
+          activeOpacity={0.85}
+        >
+          <ShieldAlert size={17} color={colors.danger} />
+          <Text style={styles.damageBtnText}>Damage Product</Text>
+        </TouchableOpacity>
       </View>
+
+      <DamageProductModal
+        visible={damageModalOpen}
+        productId={product.id}
+        productName={product.name}
+        availableStock={product.availableStock ?? product.currentStock}
+        unit={unit}
+        onClose={() => setDamageModalOpen(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -411,48 +540,98 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
   },
+  stockBadgesCol: {
+    alignItems: 'flex-end',
+    gap: 5,
+  },
   stockPill: {
-    backgroundColor: colors.successBg,
+    backgroundColor: colors.surfaceSubtle,
     borderWidth: 1,
-    borderColor: colors.successBorder,
+    borderColor: colors.border,
     paddingHorizontal: spacing.md,
-    paddingVertical: 4,
-    borderRadius: radius.full,
+    paddingVertical: 5,
+    borderRadius: radius.sm,
   },
   stockPillText: {
-    fontSize: fontSize.sm,
+    fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
-    color: colors.success,
+    color: colors.textPrimary,
   },
-  tabsRow: {
-    flexDirection: 'row',
-    backgroundColor: colors.surfaceSubtle,
-    borderRadius: radius.md,
-    padding: 4,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    marginBottom: spacing.md,
-  },
-  tabBtn: {
-    flex: 1,
-    minHeight: 38,
-    borderRadius: radius.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  tabBtnActive: {
+  damagedPill: {
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
+    borderRadius: radius.sm,
+  },
+  damagedPillText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: colors.textSecondary,
+  },
+  topTabBarWrap: {
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
+  },
+  tabsRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    paddingHorizontal: spacing.sm,
+  },
+  tabBtn: {
+    position: 'relative',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 15,
+    minWidth: 76,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   tabText: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
     color: colors.textSecondary,
   },
   tabTextActive: {
     color: colors.primary,
     fontWeight: fontWeight.bold,
+  },
+  tabIndicator: {
+    position: 'absolute',
+    left: spacing.sm,
+    right: spacing.sm,
+    bottom: 0,
+    height: 3.5,
+    backgroundColor: colors.primary,
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 4,
+  },
+  compactHeaderCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  compactHeaderLeft: {
+    flex: 1,
+  },
+  compactTitle: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  compactSub: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   loaderInline: {
     paddingVertical: spacing.xl,
@@ -469,14 +648,54 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.borderSubtle,
     backgroundColor: colors.surface,
-    flexDirection: 'row',
     gap: spacing.sm,
   },
   addBtn: {
-    flex: 1,
     minHeight: touchTarget.minHeight,
     flexDirection: 'row',
     gap: spacing.sm,
+  },
+  damageBtn: {
+    minHeight: touchTarget.minHeight,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs + 2,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderColor: colors.dangerBorder,
+    backgroundColor: colors.dangerBg,
+  },
+  damageBtnText: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: colors.danger,
+  },
+  damageCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.dangerBorder,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  damageQtyBadge: {
+    backgroundColor: colors.dangerBg,
+    borderWidth: 1,
+    borderColor: colors.dangerBorder,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+  },
+  damageQtyText: {
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
+    color: colors.danger,
+  },
+  damageLossText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: colors.danger,
   },
   headerEditBtn: {
     flexDirection: 'row',
