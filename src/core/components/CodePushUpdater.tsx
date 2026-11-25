@@ -1,38 +1,69 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   AppState,
+  Easing,
   Modal,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import codePush from '@revopush/react-native-code-push';
-import { DownloadCloud, RefreshCw, Sparkles, X } from 'lucide-react-native';
-import { colors, fontSize, fontWeight, radius, shadows, spacing } from '../theme';
+import codePush, {
+  type DownloadProgress,
+} from '@revopush/react-native-code-push';
+import { CloudDownload, RefreshCw, Rocket, RotateCw } from 'lucide-react-native';
 
-type UpdateUiState = 'hidden' | 'downloading' | 'installing' | 'ready';
+type UpdatePhase = 'hidden' | 'downloading' | 'installing' | 'ready';
 
-function formatMb(bytes: number): string {
-  return (bytes / (1024 * 1024)).toFixed(2);
+function formatBytes(bytes: number): string {
+  if (!bytes || bytes <= 0) return '0 KB';
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(0)} KB`;
+  }
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
 export function CodePushUpdater() {
-  const [uiState, setUiState] = useState<UpdateUiState>('hidden');
+  const [phase, setPhase] = useState<UpdatePhase>('hidden');
   const [receivedBytes, setReceivedBytes] = useState(0);
   const [totalBytes, setTotalBytes] = useState(0);
-  const syncingRef = useRef(false);
+  const [isRestarting, setIsRestarting] = useState(false);
+  const isSyncingRef = useRef(false);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  const checkAndSync = useCallback(async () => {
-    if (__DEV__ || syncingRef.current) return;
-    syncingRef.current = true;
+  useEffect(() => {
+    if (phase === 'hidden') return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.08,
+          duration: 750,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 750,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [phase, pulseAnim]);
+
+  const runSync = useCallback(async () => {
+    if (__DEV__ || isSyncingRef.current) return;
+    isSyncingRef.current = true;
     try {
       const pending = await codePush.getUpdateMetadata(
         codePush.UpdateState.PENDING,
       );
       if (pending) {
-        setUiState('ready');
+        setPhase('ready');
         return;
       }
 
@@ -44,59 +75,64 @@ export function CodePushUpdater() {
         (status) => {
           switch (status) {
             case codePush.SyncStatus.DOWNLOADING_PACKAGE:
-              setUiState('downloading');
+              setPhase('downloading');
               break;
             case codePush.SyncStatus.INSTALLING_UPDATE:
-              setUiState('installing');
+              setPhase('installing');
               break;
             case codePush.SyncStatus.UPDATE_INSTALLED:
-              setUiState('ready');
+              setPhase('ready');
               break;
             case codePush.SyncStatus.UP_TO_DATE:
             case codePush.SyncStatus.UPDATE_IGNORED:
             case codePush.SyncStatus.UNKNOWN_ERROR:
-              setUiState((prev) => (prev === 'ready' ? 'ready' : 'hidden'));
+              setPhase((prev) => (prev === 'ready' ? 'ready' : 'hidden'));
               break;
             default:
               break;
           }
         },
-        (progress) => {
-          setReceivedBytes(progress.receivedBytes);
-          setTotalBytes(progress.totalBytes);
+        (progress: DownloadProgress) => {
+          setReceivedBytes(progress.receivedBytes || 0);
+          setTotalBytes(progress.totalBytes || 0);
         },
       );
     } catch {
-      setUiState((prev) => (prev === 'ready' ? 'ready' : 'hidden'));
+      setPhase((prev) => (prev === 'ready' ? 'ready' : 'hidden'));
     } finally {
-      syncingRef.current = false;
+      isSyncingRef.current = false;
     }
   }, []);
 
   useEffect(() => {
-    void checkAndSync();
-
+    void runSync();
     const sub = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'active') {
-        void checkAndSync();
+        void runSync();
       }
     });
+    return () => sub.remove();
+  }, [runSync]);
 
-    return () => {
-      sub.remove();
-    };
-  }, [checkAndSync]);
+  const handleRestart = useCallback(() => {
+    if (isRestarting) return;
+    setIsRestarting(true);
+    codePush.restartApp(false);
+  }, [isRestarting]);
 
-  const handleRestart = () => {
-    codePush.restartApp();
-  };
-
-  if (uiState === 'hidden') return null;
+  if (phase === 'hidden') {
+    return null;
+  }
 
   const progressPct =
-    totalBytes > 0
-      ? Math.min(100, Math.round((receivedBytes / totalBytes) * 100))
-      : 0;
+    phase === 'installing' || phase === 'ready'
+      ? 100
+      : totalBytes > 0
+        ? Math.min(100, Math.round((receivedBytes / totalBytes) * 100))
+        : 0;
+
+  const isReady = phase === 'ready';
+  const isInstalling = phase === 'installing';
 
   return (
     <Modal
@@ -104,92 +140,123 @@ export function CodePushUpdater() {
       transparent
       animationType="fade"
       statusBarTranslucent
-      onRequestClose={() => {
-        if (uiState === 'ready') setUiState('hidden');
-      }}
+      onRequestClose={() => {}}
     >
       <View style={styles.backdrop}>
-        <View style={styles.card}>
-          {uiState === 'ready' ? (
-            <TouchableOpacity
-              style={styles.closeBtn}
-              onPress={() => setUiState('hidden')}
-              hitSlop={8}
+        <View style={styles.sheetContainer}>
+          <View style={styles.topSection}>
+            {/* Top Accent Pill */}
+            <View
+              style={[
+                styles.statusPill,
+                isReady ? styles.statusPillSuccess : styles.statusPillInfo,
+              ]}
             >
-              <X size={16} color={colors.textSecondary} />
-            </TouchableOpacity>
-          ) : null}
+              <View
+                style={[
+                  styles.statusDot,
+                  { backgroundColor: isReady ? '#059669' : '#4F46E5' },
+                ]}
+              />
+              <Text
+                style={[
+                  styles.statusPillText,
+                  { color: isReady ? '#047857' : '#4338CA' },
+                ]}
+              >
+                {isReady
+                  ? 'UPDATE INSTALLED'
+                  : isInstalling
+                    ? 'INSTALLING UPDATE'
+                    : 'NEW UPDATE AVAILABLE'}
+              </Text>
+            </View>
 
-          <View
-            style={[
-              styles.iconCircle,
-              uiState === 'ready' && styles.iconCircleReady,
-            ]}
-          >
-            {uiState === 'ready' ? (
-              <Sparkles size={24} color={colors.success} />
-            ) : (
-              <DownloadCloud size={24} color={colors.primary} />
-            )}
+            {/* Animated Hero Icon */}
+            <Animated.View
+              style={[
+                styles.iconRing,
+                isReady ? styles.iconRingSuccess : styles.iconRingInfo,
+                { transform: [{ scale: pulseAnim }] },
+              ]}
+            >
+              <View
+                style={[
+                  styles.iconInner,
+                  isReady ? styles.iconInnerSuccess : styles.iconInnerInfo,
+                ]}
+              >
+                {isReady ? (
+                  <Rocket size={34} color="#FFFFFF" />
+                ) : isInstalling ? (
+                  <RefreshCw size={34} color="#FFFFFF" />
+                ) : (
+                  <CloudDownload size={34} color="#FFFFFF" />
+                )}
+              </View>
+            </Animated.View>
+
+            {/* Title & Description */}
+            <Text style={styles.title}>
+              {isReady
+                ? 'Update Ready to Apply'
+                : isInstalling
+                  ? 'Preparing Your App...'
+                  : 'Downloading Update'}
+            </Text>
+            <Text style={styles.subtitle}>
+              {isReady
+                ? 'New improvements and bug fixes have been downloaded. Restart Inventory App now to start using the latest version.'
+                : isInstalling
+                  ? 'Almost done! Applying the latest update package to your app.'
+                  : 'A new update is available for Inventory App. Please wait while we download the latest version.'}
+            </Text>
           </View>
 
-          <Text style={styles.title}>
-            {uiState === 'downloading'
-              ? 'Update Available'
-              : uiState === 'installing'
-                ? 'Installing Update'
-                : 'Update Ready'}
-          </Text>
+          {/* Progress Section */}
+          {!isReady ? (
+            <View style={styles.progressBox}>
+              <View style={styles.progressHeader}>
+                <View style={styles.progressLabelRow}>
+                  <ActivityIndicator size="small" color="#4F46E5" />
+                  <Text style={styles.progressLabel}>
+                    {isInstalling ? 'Installing...' : 'Downloading...'}
+                  </Text>
+                </View>
+                <Text style={styles.progressPercent}>{progressPct}%</Text>
+              </View>
 
-          <Text style={styles.subtitle}>
-            {uiState === 'downloading'
-              ? 'Downloading the latest app update in the background...'
-              : uiState === 'installing'
-                ? 'Applying update files. Please wait a moment...'
-                : 'A new update has been downloaded and installed. Restart the app to apply changes.'}
-          </Text>
-
-          {uiState === 'downloading' ? (
-            <View style={styles.progressSection}>
               <View style={styles.progressTrack}>
                 <View
                   style={[styles.progressFill, { width: `${progressPct}%` }]}
                 />
               </View>
-              <View style={styles.progressMeta}>
-                <Text style={styles.progressText}>{progressPct}%</Text>
-                {totalBytes > 0 ? (
-                  <Text style={styles.progressText}>
-                    {formatMb(receivedBytes)} / {formatMb(totalBytes)} MB
-                  </Text>
-                ) : null}
-              </View>
+
+              {totalBytes > 0 ? (
+                <Text style={styles.bytesText}>
+                  {formatBytes(receivedBytes)} / {formatBytes(totalBytes)}
+                </Text>
+              ) : null}
             </View>
           ) : null}
 
-          {uiState === 'installing' ? (
-            <View style={styles.installingRow}>
-              <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={styles.installingText}>Finalizing update...</Text>
-            </View>
-          ) : null}
-
-          {uiState === 'ready' ? (
-            <View style={styles.actions}>
+          {/* Restart Button Only (No Later option) */}
+          {isReady ? (
+            <View style={styles.actionsWrap}>
               <TouchableOpacity
-                style={styles.laterBtn}
-                onPress={() => setUiState('hidden')}
-                activeOpacity={0.75}
-              >
-                <Text style={styles.laterBtnText}>Later</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.restartBtn}
+                activeOpacity={0.85}
+                disabled={isRestarting}
                 onPress={handleRestart}
-                activeOpacity={0.8}
+                style={styles.restartBtn}
               >
-                <RefreshCw size={16} color={colors.surface} />
-                <Text style={styles.restartBtnText}>Restart Now</Text>
+                {isRestarting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <RotateCw size={20} color="#FFFFFF" />
+                    <Text style={styles.restartBtnText}>Restart App Now</Text>
+                  </>
+                )}
               </TouchableOpacity>
             </View>
           ) : null}
@@ -202,129 +269,178 @@ export function CodePushUpdater() {
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.55)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.lg,
+    backgroundColor: 'rgba(15, 23, 42, 0.72)',
+    justifyContent: 'flex-end',
   },
-  card: {
+  sheetContainer: {
     width: '100%',
-    maxWidth: 360,
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    padding: spacing.xl,
+    minHeight: 410,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingHorizontal: 24,
+    paddingTop: 32,
+    paddingBottom: 36,
+    justifyContent: 'space-between',
     alignItems: 'center',
+    borderTopWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    elevation: 16,
+  },
+  topSection: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: colors.border,
-    ...shadows.floating,
+    marginBottom: 24,
   },
-  closeBtn: {
-    position: 'absolute',
-    top: spacing.md,
-    right: spacing.md,
-    width: 28,
-    height: 28,
-    borderRadius: radius.full,
-    backgroundColor: colors.surfaceSubtle,
+  statusPillInfo: {
+    backgroundColor: '#EEF2FF',
+    borderColor: '#C7D2FE',
+  },
+  statusPillSuccess: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#A7F3D0',
+  },
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    marginRight: 7,
+  },
+  statusPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  iconRing: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 22,
   },
-  iconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: radius.full,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
+  iconRingInfo: {
+    backgroundColor: '#EEF2FF',
   },
-  iconCircleReady: {
+  iconRingSuccess: {
     backgroundColor: '#ECFDF5',
   },
+  iconInner: {
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.28,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  iconInnerInfo: {
+    backgroundColor: '#4F46E5',
+    shadowColor: '#4F46E5',
+  },
+  iconInnerSuccess: {
+    backgroundColor: '#059669',
+    shadowColor: '#059669',
+  },
   title: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
-    color: colors.textPrimary,
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#0F172A',
     textAlign: 'center',
+    marginBottom: 10,
   },
   subtitle: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 21,
+    color: '#64748B',
     textAlign: 'center',
-    lineHeight: 20,
-    marginTop: spacing.xs,
+    paddingHorizontal: 8,
+    marginBottom: 24,
   },
-  progressSection: {
+  progressBox: {
     width: '100%',
-    marginTop: spacing.lg,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  progressLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  progressLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#334155',
+    marginLeft: 8,
+  },
+  progressPercent: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#4F46E5',
   },
   progressTrack: {
     width: '100%',
-    height: 8,
-    borderRadius: radius.full,
-    backgroundColor: colors.surfaceSubtle,
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: '#E2E8F0',
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    borderRadius: radius.full,
-    backgroundColor: colors.primary,
+    borderRadius: 999,
+    backgroundColor: '#4F46E5',
   },
-  progressMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 6,
+  bytesText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+    textAlign: 'right',
+    marginTop: 8,
   },
-  progressText: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-    color: colors.textSecondary,
-  },
-  installingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.lg,
-  },
-  installingText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    color: colors.primary,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
+  actionsWrap: {
     width: '100%',
-    marginTop: spacing.xl,
-  },
-  laterBtn: {
-    flex: 1,
-    paddingVertical: spacing.sm + 2,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSubtle,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  laterBtnText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-    color: colors.textSecondary,
+    paddingTop: 8,
   },
   restartBtn: {
-    flex: 1.5,
+    width: '100%',
+    height: 54,
+    borderRadius: 16,
+    backgroundColor: '#059669',
     flexDirection: 'row',
-    gap: 6,
-    paddingVertical: spacing.sm + 2,
-    borderRadius: radius.md,
-    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.28,
+    shadowRadius: 10,
+    elevation: 5,
   },
   restartBtnText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    color: colors.surface,
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+    marginLeft: 8,
   },
 });
