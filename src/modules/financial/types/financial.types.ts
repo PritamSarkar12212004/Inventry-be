@@ -26,11 +26,12 @@ export type ExpenseCategory =
   | 'RAW_MATERIAL'
   | 'PACKAGING'
   | 'IN_HOUSE_PRODUCTION'
+  | 'SHIPPING_COURIER'
+  | 'LABOUR_WAGES'
+  | 'RENT_UTILITIES'
   | 'ELECTRICITY'
-  | 'RENT'
-  | 'SALARY'
-  | 'TRANSPORT'
   | 'MARKETING'
+  | 'TRANSPORT'
   | 'MAINTENANCE'
   | 'MISCELLANEOUS';
 

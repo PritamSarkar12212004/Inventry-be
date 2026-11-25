@@ -7,18 +7,18 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   BellRing,
   Building2,
   ChevronRight,
-  FileText,
   LogOut,
   Mail,
   Phone,
-  QrCode,
   User,
+  Wallet,
 } from 'lucide-react-native';
 import { API_ORIGIN } from '../../../core/api';
 import { IosConfirmModal } from '../../../core/components/IosConfirmModal';
@@ -30,7 +30,11 @@ import { ProfileTabSkeleton } from '../skeletons';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
-export function ProfileTabScreen() {
+type ProfileTabScreenProps = {
+  onCloseDrawer?: () => void;
+};
+
+export function ProfileTabScreen({ onCloseDrawer }: ProfileTabScreenProps = {}) {
   const navigation = useNavigation<NavProp>();
   const { data: user, isLoading: isLoadingMe } = useMe();
   const { data: business, isLoading: isLoadingBusiness } = useBusinessSettings();
@@ -64,8 +68,15 @@ export function ProfileTabScreen() {
     });
   };
 
+  const handleNavigate = (
+    screen: 'EditProfile' | 'Finance' | 'BusinessHub' | 'Reminders',
+  ) => {
+    onCloseDrawer?.();
+    navigation.navigate(screen);
+  };
+
   return (
-    <View style={styles.screen}>
+    <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -109,7 +120,26 @@ export function ProfileTabScreen() {
           <TouchableOpacity
             style={styles.menuRow}
             activeOpacity={0.75}
-            onPress={() => navigation.navigate('EditProfile')}
+            onPress={() => handleNavigate('Finance')}
+          >
+            <View style={styles.iconBox}>
+              <Wallet size={19} color={colors.primary} />
+            </View>
+            <View style={styles.menuInfo}>
+              <Text style={styles.menuTitle}>Finance</Text>
+              <Text style={styles.menuSub}>
+                Pending payments & financial overview
+              </Text>
+            </View>
+            <ChevronRight size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+
+          <View style={styles.divider} />
+
+          <TouchableOpacity
+            style={styles.menuRow}
+            activeOpacity={0.75}
+            onPress={() => handleNavigate('EditProfile')}
           >
             <View style={styles.iconBox}>
               <User size={19} color={colors.primary} />
@@ -128,15 +158,15 @@ export function ProfileTabScreen() {
           <TouchableOpacity
             style={styles.menuRow}
             activeOpacity={0.75}
-            onPress={() => navigation.navigate('BusinessSettings')}
+            onPress={() => handleNavigate('BusinessHub')}
           >
             <View style={styles.iconBox}>
               <Building2 size={19} color={colors.primary} />
             </View>
             <View style={styles.menuInfo}>
-              <Text style={styles.menuTitle}>Business & Invoice</Text>
+              <Text style={styles.menuTitle}>Business & Billing</Text>
               <Text style={styles.menuSub}>
-                GSTIN, PAN, address, bank details, stamp & PDF footer
+                Info, bank, stamp, QR & sample PDF
               </Text>
             </View>
             <ChevronRight size={18} color={colors.textMuted} />
@@ -147,26 +177,7 @@ export function ProfileTabScreen() {
           <TouchableOpacity
             style={styles.menuRow}
             activeOpacity={0.75}
-            onPress={() => navigation.navigate('PaymentQr')}
-          >
-            <View style={styles.iconBox}>
-              <QrCode size={19} color={colors.primary} />
-            </View>
-            <View style={styles.menuInfo}>
-              <Text style={styles.menuTitle}>Payment & QR Code</Text>
-              <Text style={styles.menuSub}>
-                Upload UPI QR code & payment ID
-              </Text>
-            </View>
-            <ChevronRight size={18} color={colors.textMuted} />
-          </TouchableOpacity>
-
-          <View style={styles.divider} />
-
-          <TouchableOpacity
-            style={styles.menuRow}
-            activeOpacity={0.75}
-            onPress={() => navigation.navigate('Reminders')}
+            onPress={() => handleNavigate('Reminders')}
           >
             <View style={styles.iconBox}>
               <BellRing size={19} color={colors.primary} />
@@ -175,25 +186,6 @@ export function ProfileTabScreen() {
               <Text style={styles.menuTitle}>Reminders</Text>
               <Text style={styles.menuSub}>
                 Payment & low stock alerts
-              </Text>
-            </View>
-            <ChevronRight size={18} color={colors.textMuted} />
-          </TouchableOpacity>
-
-          <View style={styles.divider} />
-
-          <TouchableOpacity
-            style={styles.menuRow}
-            activeOpacity={0.75}
-            onPress={() => navigation.navigate('SamplePdf')}
-          >
-            <View style={styles.iconBox}>
-              <FileText size={19} color={colors.primary} />
-            </View>
-            <View style={styles.menuInfo}>
-              <Text style={styles.menuTitle}>Sample PDF</Text>
-              <Text style={styles.menuSub}>
-                Preview invoice with your info & dummy items
               </Text>
             </View>
             <ChevronRight size={18} color={colors.textMuted} />
@@ -229,7 +221,7 @@ export function ProfileTabScreen() {
         onCancel={() => setLogoutModalOpen(false)}
         onConfirm={handleConfirmLogout}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -239,7 +231,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   scrollContent: {
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
     paddingBottom: spacing.xxl,
   },
   profileCard: {

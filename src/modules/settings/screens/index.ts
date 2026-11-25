@@ -1,3 +1,4 @@
+export { BusinessHubScreen } from './BusinessHubScreen';
 export { BusinessSettingsScreen } from './BusinessSettingsScreen';
 export { PaymentQrScreen } from './PaymentQrScreen';
 export { PaymentReminderScreen } from './PaymentReminderScreen';

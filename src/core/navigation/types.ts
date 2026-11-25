@@ -21,6 +21,11 @@ export type SalesTopTabsParamList = {
   Suppliers: undefined;
 };
 
+export type ExpensesTopTabsParamList = {
+  GeneralExpenses: undefined;
+  ManpowerExpenses: undefined;
+};
+
 export type PurchaseTopTabsParamList = {
   PurchaseOrders: undefined;
   GrnList: undefined;
@@ -50,6 +55,8 @@ export type RootStackParamList = {
   Auth: undefined;
   Profile: undefined;
   EditProfile: undefined;
+  Finance: undefined;
+  BusinessHub: undefined;
   BusinessSettings: undefined;
   PaymentQr: undefined;
   Reminders: undefined;

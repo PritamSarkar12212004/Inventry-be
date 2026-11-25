@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { DrawerActions } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Home,
+  Menu,
   Package,
+  Receipt,
   ShoppingCart,
-  User,
-  Wallet,
 } from 'lucide-react-native';
 import type {
+  ExpensesTopTabsParamList,
   MainTabsParamList,
   SalesTopTabsParamList,
   StockTopTabsParamList,
@@ -22,13 +24,15 @@ import { DashboardScreen } from '../../modules/dashboard';
 import { AllStockScreen, LowStockScreen } from '../../modules/inventory';
 import { CustomersScreen, SalesOrdersScreen } from '../../modules/orders';
 import {
-  FinancialScreen,
+  ExpensesScreen,
   SuppliersPurchasesScreen,
 } from '../../modules/financial';
 
 const BottomTab = createBottomTabNavigator<MainTabsParamList>();
 const StockTopTab = createMaterialTopTabNavigator<StockTopTabsParamList>();
 const SalesTopTab = createMaterialTopTabNavigator<SalesTopTabsParamList>();
+const ExpensesTopTab =
+  createMaterialTopTabNavigator<ExpensesTopTabsParamList>();
 
 const topTabScreenOptions = {
   tabBarActiveTintColor: colors.primary,
@@ -104,6 +108,36 @@ function SalesTopTabs() {
   );
 }
 
+function GeneralExpensesTab() {
+  return <ExpensesScreen mode="GENERAL" />;
+}
+
+function ManpowerExpensesTab() {
+  return <ExpensesScreen mode="MANPOWER" />;
+}
+
+function ExpensesTopTabs() {
+  return (
+    <ExpensesTopTab.Navigator
+      screenOptions={{
+        ...topTabScreenOptions,
+        tabBarScrollEnabled: false,
+      }}
+    >
+      <ExpensesTopTab.Screen
+        name="GeneralExpenses"
+        options={{ title: 'General' }}
+        component={GeneralExpensesTab}
+      />
+      <ExpensesTopTab.Screen
+        name="ManpowerExpenses"
+        options={{ title: 'Manpower' }}
+        component={ManpowerExpensesTab}
+      />
+    </ExpensesTopTab.Navigator>
+  );
+}
+
 type TabIconProps = { focused: boolean; color: string; size: number };
 
 function TabIconBadge({
@@ -139,14 +173,18 @@ const renderSalesIcon = ({ focused, color, size }: TabIconProps) => (
     />
   </TabIconBadge>
 );
-const renderReceiveIcon = ({ focused, color, size }: TabIconProps) => (
+const renderExpensesIcon = ({ focused, color, size }: TabIconProps) => (
   <TabIconBadge focused={focused}>
-    <Wallet color={color} size={size - 2} strokeWidth={focused ? 2.3 : 1.8} />
+    <Receipt
+      color={color}
+      size={size - 2}
+      strokeWidth={focused ? 2.3 : 1.8}
+    />
   </TabIconBadge>
 );
-const renderProfileIcon = ({ focused, color, size }: TabIconProps) => (
+const renderMenuIcon = ({ focused, color, size }: TabIconProps) => (
   <TabIconBadge focused={focused}>
-    <User
+    <Menu
       color={color}
       size={size - 2}
       strokeWidth={focused ? 2.3 : 1.8}
@@ -164,9 +202,7 @@ export function MainTabs() {
       ? 'STOCK'
       : activeTab === 'SalesTab'
         ? 'SALES'
-        : activeTab === 'ReceiveTab'
-          ? 'FINANCE'
-          : null;
+        : null;
 
   return (
     <View style={styles.wrapper}>
@@ -232,19 +268,25 @@ export function MainTabs() {
       />
       <BottomTab.Screen
         name="ReceiveTab"
-        component={FinancialScreen}
+        component={ExpensesTopTabs}
         options={{
-          title: 'Finance',
-          tabBarIcon: renderReceiveIcon,
+          title: 'Expenses',
+          tabBarIcon: renderExpensesIcon,
         }}
       />
       <BottomTab.Screen
         name="MoreTab"
         component={ProfileTabScreen}
         options={{
-          title: 'Profile',
-          tabBarIcon: renderProfileIcon,
+          title: 'Menu',
+          tabBarIcon: renderMenuIcon,
         }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            navigation.dispatch(DrawerActions.openDrawer());
+          },
+        })}
       />
       </BottomTab.Navigator>
     </View>

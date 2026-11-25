@@ -4,13 +4,14 @@ import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { RootStackParamList } from './types';
 import { AuthStack } from './AuthStack';
-import { MainTabs } from './MainTabs';
+import { MainDrawer } from './MainDrawer';
 import { PlaceholderScreen } from './PlaceholderScreen';
 import { IosLoader } from '../components/IosLoader';
 import { colors, fontWeight } from '../theme';
 import { authStore, useAuthStore } from '../store/authStore';
 import { ProfileScreen } from '../../modules/auth';
 import {
+  BusinessHubScreen,
   BusinessSettingsScreen,
   PaymentQrScreen,
   PaymentReminderScreen,
@@ -33,6 +34,7 @@ import {
 import {
   CustomerPendingDetailScreen,
   FinancialOverviewDetailScreen,
+  FinancialScreen,
   SupplierOverviewDetailScreen,
   SupplierPurchaseDetailScreen,
 } from '../../modules/financial';
@@ -102,7 +104,7 @@ export default function RootNavigator() {
           <>
             <RootStack.Screen
               name="Main"
-              component={MainTabs}
+              component={MainDrawer}
               options={{ headerShown: false }}
             />
             <RootStack.Screen
@@ -174,6 +176,16 @@ export default function RootNavigator() {
               name="EditProfile"
               component={ProfileScreen}
               options={{ title: 'Edit Profile' }}
+            />
+            <RootStack.Screen
+              name="Finance"
+              component={FinancialScreen}
+              options={{ title: 'Finance' }}
+            />
+            <RootStack.Screen
+              name="BusinessHub"
+              component={BusinessHubScreen}
+              options={{ title: 'Business & Billing' }}
             />
             <RootStack.Screen
               name="BusinessSettings"

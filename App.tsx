@@ -14,6 +14,7 @@ import { paperTheme } from './src/core/theme';
 import RootNavigator from './src/core/navigation/RootNavigator';
 import ErrorFallback from './src/core/layouts/ErrorFallback';
 import { IosPopupHost } from './src/core/components/IosPopupHost';
+import { CodePushUpdater } from './src/core/components/CodePushUpdater';
 import { queryClient } from './src/core/util/queryClient';
 
 function App() {
@@ -27,6 +28,7 @@ function App() {
                 <StatusBar barStyle="dark-content" />
                 <RootNavigator />
                 <IosPopupHost />
+                <CodePushUpdater />
               </BottomSheetModalProvider>
             </PaperProvider>
           </QueryClientProvider>
@@ -37,9 +39,7 @@ function App() {
 }
 
 export default codePush({
-  checkFrequency: codePush.CheckFrequency.ON_APP_RESUME,
-  installMode: codePush.InstallMode.ON_NEXT_RESTART,
-  mandatoryInstallMode: codePush.InstallMode.IMMEDIATE,
+  checkFrequency: codePush.CheckFrequency.MANUAL,
 })(App);
 
 const styles = StyleSheet.create({

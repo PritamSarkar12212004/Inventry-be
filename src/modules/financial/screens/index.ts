@@ -1,3 +1,4 @@
+export { ExpensesScreen } from './ExpensesScreen';
 export { FinancialScreen } from './FinancialScreen';
 export { FinancialOverviewDetailScreen } from './FinancialOverviewDetailScreen';
 export { CustomerPendingDetailScreen } from './CustomerPendingDetailScreen';
