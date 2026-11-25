@@ -212,7 +212,7 @@ export function ProfileTabScreen({ onCloseDrawer }: ProfileTabScreenProps = {}) 
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.versionFooter}>Inventory App • v1.0</Text>
+        <Text style={styles.versionFooter}>Inventory App • v1.0.1</Text>
       </ScrollView>
 
       <IosConfirmModal
