@@ -211,6 +211,8 @@ export function ProfileTabScreen({ onCloseDrawer }: ProfileTabScreenProps = {}) 
             </View>
           </TouchableOpacity>
         </View>
+
+        <Text style={styles.versionFooter}>Inventory App • v1.0</Text>
       </ScrollView>
 
       <IosConfirmModal
@@ -347,5 +349,11 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     fontWeight: fontWeight.semibold,
     color: colors.danger,
+  },
+  versionFooter: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.lg,
   },
 });
