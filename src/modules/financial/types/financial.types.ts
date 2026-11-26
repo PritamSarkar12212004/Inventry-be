@@ -33,7 +33,29 @@ export type ExpenseCategory =
   | 'MARKETING'
   | 'TRANSPORT'
   | 'MAINTENANCE'
-  | 'MISCELLANEOUS';
+  | 'MISCELLANEOUS'
+  | (string & {});
+
+export type ExpenseCategoryItem = {
+  _id: string;
+  name: string;
+  code: string;
+  description?: string;
+  expenseCount?: number;
+  titleCount?: number;
+  totalAmount?: number;
+  createdAt?: string;
+};
+
+export type ExpenseCategoryListResponse = {
+  items: ExpenseCategoryItem[];
+  pagination?: PaginationMeta;
+};
+
+export type CreateExpenseCategoryPayload = {
+  name: string;
+  description?: string;
+};
 
 export type ExpenseLineItem = {
   key: string;
@@ -57,6 +79,28 @@ export type ExpenseItem = {
 
 export type ExpenseListResponse = {
   items: ExpenseItem[];
+  totals?: {
+    amount: number;
+    totalAmount: number;
+  };
+  pagination?: PaginationMeta;
+};
+
+export type ExpenseTitleItem = {
+  key: string;
+  title: string;
+  count: number;
+  totalAmount: number;
+  latestDate?: string;
+};
+
+export type ExpenseTitleListResponse = {
+  items: ExpenseTitleItem[];
+  summary?: {
+    totalAmount: number;
+    totalEntries: number;
+    totalItems: number;
+  };
   pagination?: PaginationMeta;
 };
 
@@ -64,6 +108,7 @@ export type CreateExpensePayload = {
   category: ExpenseCategory;
   title: string;
   amount: number;
+  expenseDate?: string;
   notes?: string;
   productId?: string;
   productName?: string;

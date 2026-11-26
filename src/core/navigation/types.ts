@@ -21,11 +21,6 @@ export type SalesTopTabsParamList = {
   Suppliers: undefined;
 };
 
-export type ExpensesTopTabsParamList = {
-  GeneralExpenses: undefined;
-  ManpowerExpenses: undefined;
-};
-
 export type PurchaseTopTabsParamList = {
   PurchaseOrders: undefined;
   GrnList: undefined;
@@ -56,6 +51,15 @@ export type RootStackParamList = {
   Profile: undefined;
   EditProfile: undefined;
   Finance: undefined;
+  GeneralExpenses: undefined;
+  CategoryExpenses: { categoryCode: string; categoryName: string };
+  ExpenseTitleDetail: {
+    title: string;
+    mode: 'GENERAL' | 'MANPOWER';
+    categoryCode?: string;
+    categoryName?: string;
+  };
+  ManpowerExpenses: undefined;
   BusinessHub: undefined;
   BusinessSettings: undefined;
   PaymentQr: undefined;

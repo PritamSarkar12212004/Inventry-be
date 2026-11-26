@@ -33,11 +33,45 @@ import {
 } from '../../modules/orders';
 import {
   CustomerPendingDetailScreen,
+  ExpensesScreen,
   FinancialOverviewDetailScreen,
   FinancialScreen,
+  GeneralExpensesScreen,
   SupplierOverviewDetailScreen,
   SupplierPurchaseDetailScreen,
 } from '../../modules/financial';
+
+const ManpowerExpensesScreen = () => <ExpensesScreen mode="MANPOWER" />;
+const CategoryExpensesScreen = ({
+  route,
+}: {
+  route: { params: { categoryCode: string; categoryName: string } };
+}) => (
+  <ExpensesScreen
+    mode="GENERAL"
+    categoryCode={route.params.categoryCode}
+    categoryName={route.params.categoryName}
+  />
+);
+const ExpenseTitleDetailScreen = ({
+  route,
+}: {
+  route: {
+    params: {
+      title: string;
+      mode: 'GENERAL' | 'MANPOWER';
+      categoryCode?: string;
+      categoryName?: string;
+    };
+  };
+}) => (
+  <ExpensesScreen
+    mode={route.params.mode}
+    categoryCode={route.params.categoryCode}
+    categoryName={route.params.categoryName}
+    titleFilter={route.params.title}
+  />
+);
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 
@@ -181,6 +215,30 @@ export default function RootNavigator() {
               name="Finance"
               component={FinancialScreen}
               options={{ title: 'Finance' }}
+            />
+            <RootStack.Screen
+              name="GeneralExpenses"
+              component={GeneralExpensesScreen}
+              options={{ title: 'General Expenses' }}
+            />
+            <RootStack.Screen
+              name="CategoryExpenses"
+              component={CategoryExpensesScreen}
+              options={({ route }) => ({
+                title: route.params.categoryName || 'Expenses',
+              })}
+            />
+            <RootStack.Screen
+              name="ExpenseTitleDetail"
+              component={ExpenseTitleDetailScreen}
+              options={({ route }) => ({
+                title: route.params.title || 'History',
+              })}
+            />
+            <RootStack.Screen
+              name="ManpowerExpenses"
+              component={ManpowerExpensesScreen}
+              options={{ title: 'Manpower Expenses' }}
             />
             <RootStack.Screen
               name="BusinessHub"

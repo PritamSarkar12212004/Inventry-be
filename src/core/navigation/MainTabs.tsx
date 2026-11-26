@@ -12,7 +12,6 @@ import {
   ShoppingCart,
 } from 'lucide-react-native';
 import type {
-  ExpensesTopTabsParamList,
   MainTabsParamList,
   SalesTopTabsParamList,
   StockTopTabsParamList,
@@ -24,15 +23,13 @@ import { DashboardScreen } from '../../modules/dashboard';
 import { AllStockScreen, LowStockScreen } from '../../modules/inventory';
 import { CustomersScreen, SalesOrdersScreen } from '../../modules/orders';
 import {
-  ExpensesScreen,
+  ExpensesHubScreen,
   SuppliersPurchasesScreen,
 } from '../../modules/financial';
 
 const BottomTab = createBottomTabNavigator<MainTabsParamList>();
 const StockTopTab = createMaterialTopTabNavigator<StockTopTabsParamList>();
 const SalesTopTab = createMaterialTopTabNavigator<SalesTopTabsParamList>();
-const ExpensesTopTab =
-  createMaterialTopTabNavigator<ExpensesTopTabsParamList>();
 
 const topTabScreenOptions = {
   tabBarActiveTintColor: colors.primary,
@@ -105,36 +102,6 @@ function SalesTopTabs() {
         component={SuppliersPurchasesScreen}
       />
     </SalesTopTab.Navigator>
-  );
-}
-
-function GeneralExpensesTab() {
-  return <ExpensesScreen mode="GENERAL" />;
-}
-
-function ManpowerExpensesTab() {
-  return <ExpensesScreen mode="MANPOWER" />;
-}
-
-function ExpensesTopTabs() {
-  return (
-    <ExpensesTopTab.Navigator
-      screenOptions={{
-        ...topTabScreenOptions,
-        tabBarScrollEnabled: false,
-      }}
-    >
-      <ExpensesTopTab.Screen
-        name="GeneralExpenses"
-        options={{ title: 'General' }}
-        component={GeneralExpensesTab}
-      />
-      <ExpensesTopTab.Screen
-        name="ManpowerExpenses"
-        options={{ title: 'Manpower' }}
-        component={ManpowerExpensesTab}
-      />
-    </ExpensesTopTab.Navigator>
   );
 }
 
@@ -268,7 +235,7 @@ export function MainTabs() {
       />
       <BottomTab.Screen
         name="ReceiveTab"
-        component={ExpensesTopTabs}
+        component={ExpensesHubScreen}
         options={{
           title: 'Expenses',
           tabBarIcon: renderExpensesIcon,

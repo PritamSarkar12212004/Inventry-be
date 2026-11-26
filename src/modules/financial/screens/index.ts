@@ -1,3 +1,5 @@
+export { ExpensesHubScreen } from './ExpensesHubScreen';
+export { GeneralExpensesScreen } from './GeneralExpensesScreen';
 export { ExpensesScreen } from './ExpensesScreen';
 export { FinancialScreen } from './FinancialScreen';
 export { FinancialOverviewDetailScreen } from './FinancialOverviewDetailScreen';

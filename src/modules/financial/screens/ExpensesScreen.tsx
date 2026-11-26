@@ -1,7 +1,15 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Modal,
+  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
@@ -9,6 +17,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   BottomSheetBackdrop,
@@ -19,6 +29,10 @@ import {
 } from '@gorhom/bottom-sheet';
 import {
   Calendar,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Pencil,
   Plus,
   Receipt,
   Search,
@@ -26,7 +40,9 @@ import {
   Users,
   X,
 } from 'lucide-react-native';
+import { Calendar as RNCalendar } from 'react-native-calendars';
 import type { AxiosError } from 'axios';
+import type { RootStackParamList } from '../../../core/navigation/types';
 import { IosConfirmModal } from '../../../core/components/IosConfirmModal';
 import { useDebounce } from '../../../core/hooks/useDebounce';
 import { popup } from '../../../core/store/popupStore';
@@ -43,11 +59,26 @@ import {
   useCreateExpense,
   useDeleteExpense,
   useInfiniteExpenses,
+  useInfiniteExpenseTitles,
+  useUpdateExpense,
 } from '../hooks';
-import { PendingCustomersListSkeleton } from '../skeletons';
+import {
+  ExpenseFooterSkeleton,
+  ExpenseListSkeleton,
+} from '../skeletons';
 import type { ExpenseCategory, ExpenseItem } from '../types';
 
+type NavProp = NativeStackNavigationProp<RootStackParamList>;
+
 type ExpensesMode = 'GENERAL' | 'MANPOWER';
+
+type ExpenseGroup = {
+  key: string;
+  title: string;
+  totalAmount: number;
+  count: number;
+  latestDate?: string;
+};
 
 const GENERAL_CATEGORIES: Array<{ label: string; value: ExpenseCategory }> = [
   { label: 'Rent & Utilities', value: 'RENT_UTILITIES' },
@@ -91,57 +122,183 @@ function fmtDate(dateStr?: string): string {
   });
 }
 
-export function ExpensesScreen({ mode = 'GENERAL' }: { mode?: ExpensesMode }) {
+function todayIsoDate(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+const MONTH_NAMES = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
+function getMonthRange(year: number, month: number) {
+  const lastDay = new Date(year, month, 0).getDate();
+  const mm = String(month).padStart(2, '0');
+  return {
+    startDate: `${year}-${mm}-01`,
+    endDate: `${year}-${mm}-${String(lastDay).padStart(2, '0')}`,
+    label: `${MONTH_NAMES[month - 1] ?? ''} ${year}`,
+  };
+}
+
+export function ExpensesScreen({
+  mode = 'GENERAL',
+  categoryCode,
+  categoryName,
+  titleFilter,
+}: {
+  mode?: ExpensesMode;
+  categoryCode?: string;
+  categoryName?: string;
+  titleFilter?: string;
+}) {
+  const navigation = useNavigation<NavProp>();
   const isManpower = mode === 'MANPOWER';
+  const hasFixedCategory = Boolean(categoryCode);
+  const isDetailMode = Boolean(titleFilter);
   const insets = useSafeAreaInsets();
   const addSheetRef = useRef<BottomSheetModal>(null);
   const snapPoints = useMemo(
-    () => (isManpower ? ['62%', '85%'] : ['75%', '92%']),
-    [isManpower],
+    () => (isManpower || hasFixedCategory ? ['74%', '92%'] : ['80%', '94%']),
+    [isManpower, hasFixedCategory],
   );
 
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search.trim(), 350);
 
   const [category, setCategory] = useState<ExpenseCategory>(
-    isManpower ? 'LABOUR_WAGES' : 'RENT_UTILITIES',
+    categoryCode || (isManpower ? 'LABOUR_WAGES' : 'RENT_UTILITIES'),
   );
   const [title, setTitle] = useState('');
   const [amountText, setAmountText] = useState('');
+  const [expenseDate, setExpenseDate] = useState<string>(todayIsoDate);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [notes, setNotes] = useState('');
+  const [editingItem, setEditingItem] = useState<ExpenseItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ExpenseItem | null>(null);
 
+  const now = useMemo(() => new Date(), []);
+  const [selectedMonth, setSelectedMonth] = useState<{
+    year: number;
+    month: number;
+  }>(() => ({ year: now.getFullYear(), month: now.getMonth() + 1 }));
+  const [pickerYear, setPickerYear] = useState<number>(() =>
+    now.getFullYear(),
+  );
+  const [filterModalOpen, setFilterModalOpen] = useState(false);
+
+  const monthRange = useMemo(
+    () =>
+      isDetailMode
+        ? getMonthRange(selectedMonth.year, selectedMonth.month)
+        : null,
+    [isDetailMode, selectedMonth],
+  );
+
+  useLayoutEffect(() => {
+    if (!isDetailMode) return;
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          style={styles.headerCalBtn}
+          activeOpacity={0.75}
+          onPress={() => {
+            setPickerYear(selectedMonth.year);
+            setFilterModalOpen(true);
+          }}
+        >
+          <Calendar size={17} color={colors.textPrimary} />
+          {monthRange ? (
+            <Text style={styles.headerCalText}>{monthRange.label}</Text>
+          ) : null}
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, isDetailMode, monthRange, selectedMonth]);
+
+  const effectiveCategory = isManpower ? 'LABOUR_WAGES' : categoryCode;
+
+  const titlesQuery = useInfiniteExpenseTitles(
+    debouncedSearch || undefined,
+    effectiveCategory,
+    !isDetailMode,
+  );
+
+  const expensesQuery = useInfiniteExpenses(
+    undefined,
+    effectiveCategory,
+    titleFilter,
+    monthRange?.startDate,
+    monthRange?.endDate,
+    isDetailMode,
+  );
+
+  const activeQuery = isDetailMode ? expensesQuery : titlesQuery;
   const {
-    data,
     isLoading,
     isRefetching,
     isFetchingNextPage,
     hasNextPage,
     fetchNextPage,
     refetch,
-  } = useInfiniteExpenses(debouncedSearch || undefined);
+  } = activeQuery;
 
   const { mutate: createExpense, isPending: isCreating } = useCreateExpense();
+  const { mutate: updateExpense, isPending: isUpdating } = useUpdateExpense();
   const { mutate: deleteExpense, isPending: isDeleting } = useDeleteExpense();
+  const isSaving = isCreating || isUpdating;
 
   const items = useMemo(() => {
-    const all = data?.pages.flatMap((p) => p.items) ?? [];
-    return all.filter((item) =>
-      isManpower
-        ? item.category === 'LABOUR_WAGES'
-        : item.category !== 'LABOUR_WAGES',
-    );
-  }, [data, isManpower]);
+    if (!isDetailMode) return [];
+    return expensesQuery.data?.pages.flatMap((p) => p.items) ?? [];
+  }, [expensesQuery.data, isDetailMode]);
 
-  const totalAmount = useMemo(
-    () => items.reduce((sum, it) => sum + Number(it.totalAmount ?? it.amount ?? 0), 0),
-    [items],
-  );
+  const groupedItems = useMemo(() => {
+    if (isDetailMode) return [];
+    return titlesQuery.data?.pages.flatMap((p) => p.items) ?? [];
+  }, [titlesQuery.data, isDetailMode]);
+
+  const totalAmount = useMemo(() => {
+    if (isDetailMode) {
+      return (
+        expensesQuery.data?.pages?.[0]?.totals?.totalAmount ??
+        items.reduce(
+          (sum, it) => sum + Number(it.totalAmount ?? it.amount ?? 0),
+          0,
+        )
+      );
+    }
+    return titlesQuery.data?.pages?.[0]?.summary?.totalAmount ?? 0;
+  }, [isDetailMode, expensesQuery.data, titlesQuery.data, items]);
+
+  const totalEntries = isDetailMode
+    ? expensesQuery.data?.pages?.[0]?.pagination?.total ?? items.length
+    : titlesQuery.data?.pages?.[0]?.summary?.totalEntries ?? 0;
+
+  const totalItemsCount =
+    titlesQuery.data?.pages?.[0]?.summary?.totalItems ?? groupedItems.length;
 
   const resetForm = () => {
-    setCategory(isManpower ? 'LABOUR_WAGES' : 'RENT_UTILITIES');
-    setTitle('');
+    setEditingItem(null);
+    setCategory(categoryCode || (isManpower ? 'LABOUR_WAGES' : 'RENT_UTILITIES'));
+    setTitle(titleFilter || '');
     setAmountText('');
+    setExpenseDate(todayIsoDate());
+    setCalendarOpen(false);
     setNotes('');
   };
 
@@ -152,9 +309,10 @@ export function ExpensesScreen({ mode = 'GENERAL' }: { mode?: ExpensesMode }) {
         disappearsOnIndex={-1}
         appearsOnIndex={0}
         opacity={0.45}
+        pressBehavior={isSaving ? 'none' : 'close'}
       />
     ),
-    [],
+    [isSaving],
   );
 
   const handleOpenAdd = () => {
@@ -162,12 +320,32 @@ export function ExpensesScreen({ mode = 'GENERAL' }: { mode?: ExpensesMode }) {
     addSheetRef.current?.present();
   };
 
+  const handleOpenEdit = (item: ExpenseItem) => {
+    setEditingItem(item);
+    setCategory(item.category);
+    setTitle(item.title || '');
+    setAmountText(String(item.amount ?? item.totalAmount ?? ''));
+    const parsed = item.expenseDate ? new Date(item.expenseDate) : null;
+    if (parsed && !Number.isNaN(parsed.getTime())) {
+      const y = parsed.getFullYear();
+      const m = String(parsed.getMonth() + 1).padStart(2, '0');
+      const d = String(parsed.getDate()).padStart(2, '0');
+      setExpenseDate(`${y}-${m}-${d}`);
+    } else {
+      setExpenseDate(todayIsoDate());
+    }
+    setCalendarOpen(false);
+    setNotes(item.notes || '');
+    addSheetRef.current?.present();
+  };
+
   const handleCloseAdd = () => {
+    if (isSaving) return;
     addSheetRef.current?.dismiss();
   };
 
-  const handleCreate = () => {
-    if (isCreating) return;
+  const handleSave = () => {
+    if (isSaving) return;
     const trimmedTitle = title.trim();
     const amount = Number.parseFloat(amountText);
     if (!trimmedTitle) {
@@ -182,31 +360,52 @@ export function ExpensesScreen({ mode = 'GENERAL' }: { mode?: ExpensesMode }) {
       return;
     }
 
-    createExpense(
-      {
-        category: isManpower ? 'LABOUR_WAGES' : category,
-        title: trimmedTitle,
-        amount,
-        ...(notes.trim() ? { notes: notes.trim() } : {}),
-      },
-      {
-        onSuccess: () => {
-          addSheetRef.current?.dismiss();
-          resetForm();
-          popup.success(
-            'Added',
-            isManpower ? 'Manpower expense recorded.' : 'Expense recorded.',
-          );
+    const payload = {
+      category: categoryCode || (isManpower ? 'LABOUR_WAGES' : category),
+      title: trimmedTitle,
+      amount,
+      expenseDate,
+      notes: notes.trim(),
+    };
+
+    if (editingItem) {
+      updateExpense(
+        { id: editingItem._id, payload },
+        {
+          onSuccess: () => {
+            addSheetRef.current?.dismiss();
+            resetForm();
+            popup.success('Updated', 'Expense updated successfully.');
+          },
+          onError: (err) => {
+            const axiosErr = err as AxiosError<{ message?: string }>;
+            popup.error(
+              'Update Failed',
+              axiosErr.response?.data?.message || 'Unable to update expense.',
+            );
+          },
         },
-        onError: (err) => {
-          const axiosErr = err as AxiosError<{ message?: string }>;
-          popup.error(
-            'Save Failed',
-            axiosErr.response?.data?.message || 'Unable to save expense.',
-          );
-        },
+      );
+      return;
+    }
+
+    createExpense(payload, {
+      onSuccess: () => {
+        addSheetRef.current?.dismiss();
+        resetForm();
+        popup.success(
+          'Added',
+          isManpower ? 'Manpower expense recorded.' : 'Expense recorded.',
+        );
       },
-    );
+      onError: (err) => {
+        const axiosErr = err as AxiosError<{ message?: string }>;
+        popup.error(
+          'Save Failed',
+          axiosErr.response?.data?.message || 'Unable to save expense.',
+        );
+      },
+    });
   };
 
   const handleConfirmDelete = () => {
@@ -226,10 +425,6 @@ export function ExpensesScreen({ mode = 'GENERAL' }: { mode?: ExpensesMode }) {
     });
   };
 
-  if (isLoading && items.length === 0) {
-    return <PendingCustomersListSkeleton />;
-  }
-
   return (
     <View style={styles.screen}>
       {/* Summary + Search Header */}
@@ -244,114 +439,185 @@ export function ExpensesScreen({ mode = 'GENERAL' }: { mode?: ExpensesMode }) {
           </View>
           <View style={styles.summaryTextWrap}>
             <Text style={styles.summaryLabel}>
-              {isManpower ? 'Manpower Expenses' : 'General Expenses'}
+              {titleFilter ||
+                categoryName ||
+                (isManpower ? 'Manpower Expenses' : 'General Expenses')}
             </Text>
             <Text style={styles.summaryCount}>
-              {items.length} {items.length === 1 ? 'entry' : 'entries'}
+              {isDetailMode
+                ? `${totalEntries} ${totalEntries === 1 ? 'entry' : 'entries'}${monthRange ? ` • ${monthRange.label}` : ''}`
+                : `${totalItemsCount} ${totalItemsCount === 1 ? 'item' : 'items'} • ${totalEntries} ${totalEntries === 1 ? 'entry' : 'entries'}`}
             </Text>
           </View>
           <Text style={styles.summaryTotal}>{fmtMoney(totalAmount)}</Text>
         </View>
 
-        <View style={styles.searchBox}>
-          <Search size={16} color={colors.textMuted} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder={
-              isManpower ? 'Search manpower expense...' : 'Search expense...'
-            }
-            placeholderTextColor={colors.textMuted}
-            value={search}
-            onChangeText={setSearch}
-          />
-          {search.length > 0 ? (
-            <TouchableOpacity onPress={() => setSearch('')} hitSlop={8}>
-              <X size={16} color={colors.textMuted} />
-            </TouchableOpacity>
-          ) : null}
-        </View>
+        {!isDetailMode ? (
+          <View style={styles.searchBox}>
+            <Search size={16} color={colors.textMuted} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder={
+                isManpower ? 'Search manpower expense...' : 'Search expense...'
+              }
+              placeholderTextColor={colors.textMuted}
+              value={search}
+              onChangeText={setSearch}
+            />
+            {search.length > 0 ? (
+              <TouchableOpacity onPress={() => setSearch('')} hitSlop={8}>
+                <X size={16} color={colors.textMuted} />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        ) : null}
       </View>
 
-      <FlatList
-        data={items}
-        keyExtractor={(item) => item._id}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefetching}
-            onRefresh={() => {
-              void refetch();
-            }}
-            tintColor={colors.primary}
-          />
-        }
-        onEndReached={() => {
-          if (hasNextPage && !isFetchingNextPage) {
-            fetchNextPage();
+      {isLoading && (isDetailMode ? items.length === 0 : groupedItems.length === 0) ? (
+        <ExpenseListSkeleton />
+      ) : isDetailMode ? (
+        <FlatList
+          data={items}
+          keyExtractor={(item) => item._id}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={() => {
+                void refetch();
+              }}
+              tintColor={colors.primary}
+            />
           }
-        }}
-        onEndReachedThreshold={0.4}
-        ListEmptyComponent={
-          <View style={styles.emptyBox}>
-            <Text style={styles.emptyTitle}>
-              {isManpower ? 'No Manpower Expenses' : 'No General Expenses'}
-            </Text>
-            <Text style={styles.emptySub}>
-              Tap + to add your first{' '}
-              {isManpower ? 'manpower expense' : 'expense'}.
-            </Text>
-          </View>
-        }
-        ListFooterComponent={
-          isFetchingNextPage ? (
-            <View style={styles.footerLoader}>
-              <ActivityIndicator size="small" color={colors.primary} />
+          onEndReached={() => {
+            if (hasNextPage && !isFetchingNextPage) {
+              fetchNextPage();
+            }
+          }}
+          onEndReachedThreshold={0.4}
+          ListEmptyComponent={
+            <View style={styles.emptyBox}>
+              <Text style={styles.emptyTitle}>No Entries Yet</Text>
+              <Text style={styles.emptySub}>
+                Tap + to add an entry for {titleFilter}.
+              </Text>
             </View>
-          ) : undefined
-        }
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={styles.cardTop}>
-              <View style={styles.cardTitleWrap}>
-                <Text style={styles.cardTitle} numberOfLines={1}>
-                  {item.title}
-                </Text>
-                <View style={styles.metaRow}>
-                  <View style={styles.catPill}>
-                    <Text style={styles.catPillText}>
-                      {CATEGORY_LABELS[item.category] || item.category}
-                    </Text>
-                  </View>
-                  <View style={styles.dateRow}>
-                    <Calendar size={11} color={colors.textMuted} />
+          }
+          ListFooterComponent={
+            isFetchingNextPage ? <ExpenseFooterSkeleton /> : undefined
+          }
+          renderItem={({ item }) => (
+            <View style={styles.card}>
+              <View style={styles.cardTop}>
+                <View style={styles.cardTitleWrap}>
+                  <Text style={styles.cardTitle} numberOfLines={2}>
+                    {item.title}
+                  </Text>
+                  <View style={styles.dateBadge}>
+                    <Calendar size={12} color={colors.primary} />
                     <Text style={styles.dateText}>
                       {fmtDate(item.expenseDate)}
                     </Text>
                   </View>
                 </View>
+                <View style={styles.amountPill}>
+                  <Text style={styles.amountText}>
+                    {fmtMoney(item.totalAmount ?? item.amount)}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.rightCol}>
-                <Text style={styles.amountText}>
-                  {fmtMoney(item.totalAmount ?? item.amount)}
+
+              {item.notes ? (
+                <Text style={styles.notesText} numberOfLines={2}>
+                  {item.notes}
                 </Text>
+              ) : null}
+
+              <View style={styles.cardActionsBar}>
+                <TouchableOpacity
+                  onPress={() => handleOpenEdit(item)}
+                  activeOpacity={0.75}
+                  style={styles.editActionBtn}
+                >
+                  <Pencil size={13} color={colors.primary} />
+                  <Text style={styles.editActionText}>Edit</Text>
+                </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => setDeleteTarget(item)}
-                  hitSlop={8}
-                  style={styles.deleteBtn}
+                  activeOpacity={0.75}
+                  style={styles.deleteActionBtn}
                 >
-                  <Trash2 size={14} color={colors.danger} />
+                  <Trash2 size={13} color={colors.danger} />
+                  <Text style={styles.deleteActionText}>Delete</Text>
                 </TouchableOpacity>
               </View>
             </View>
-            {item.notes ? (
-              <Text style={styles.notesText} numberOfLines={2}>
-                {item.notes}
+          )}
+        />
+      ) : (
+        <FlatList
+          data={groupedItems}
+          keyExtractor={(group) => group.key}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={() => {
+                void refetch();
+              }}
+              tintColor={colors.primary}
+            />
+          }
+          onEndReached={() => {
+            if (hasNextPage && !isFetchingNextPage) {
+              fetchNextPage();
+            }
+          }}
+          onEndReachedThreshold={0.4}
+          ListEmptyComponent={
+            <View style={styles.emptyBox}>
+              <Text style={styles.emptyTitle}>
+                {isManpower ? 'No Manpower Expenses' : 'No General Expenses'}
               </Text>
-            ) : null}
-          </View>
-        )}
-      />
+              <Text style={styles.emptySub}>
+                Tap + to add your first{' '}
+                {isManpower ? 'manpower expense' : 'expense'}.
+              </Text>
+            </View>
+          }
+          ListFooterComponent={
+            isFetchingNextPage ? <ExpenseFooterSkeleton /> : undefined
+          }
+          renderItem={({ item: group }) => (
+            <TouchableOpacity
+              style={styles.groupListRow}
+              activeOpacity={0.75}
+              onPress={() =>
+                navigation.navigate('ExpenseTitleDetail', {
+                  title: group.title,
+                  mode,
+                  categoryCode,
+                  categoryName,
+                })
+              }
+            >
+              <View style={styles.groupIconBox}>
+                {isManpower ? (
+                  <Users size={18} color={colors.primary} />
+                ) : (
+                  <Receipt size={18} color={colors.primary} />
+                )}
+              </View>
+              <Text style={styles.groupListTitle} numberOfLines={1}>
+                {group.title}
+              </Text>
+              <ChevronRight size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+          )}
+        />
+      )}
 
       {/* Floating Add Button */}
       <TouchableOpacity
@@ -362,13 +628,15 @@ export function ExpensesScreen({ mode = 'GENERAL' }: { mode?: ExpensesMode }) {
         <Plus size={24} color={colors.surface} />
       </TouchableOpacity>
 
-      {/* Add Expense Bottom Sheet */}
+      {/* Add / Edit Expense Bottom Sheet */}
       <BottomSheetModal
         ref={addSheetRef}
         index={0}
         snapPoints={snapPoints}
         topInset={insets.top}
-        enablePanDownToClose
+        enablePanDownToClose={!isSaving}
+        enableHandlePanningGesture={!isSaving}
+        enableContentPanningGesture={!isSaving}
         enableDynamicSizing={false}
         backdropComponent={renderBackdrop}
         keyboardBehavior="extend"
@@ -387,18 +655,27 @@ export function ExpensesScreen({ mode = 'GENERAL' }: { mode?: ExpensesMode }) {
             </View>
             <View>
               <Text style={styles.sheetTitle}>
-                {isManpower ? 'Add Manpower Expense' : 'Add Expense'}
+                {editingItem
+                  ? isManpower
+                    ? 'Edit Manpower Expense'
+                    : 'Edit Expense'
+                  : isManpower
+                    ? 'Add Manpower Expense'
+                    : 'Add Expense'}
               </Text>
               <Text style={styles.sheetSubtitle}>
-                {isManpower
-                  ? 'Record daily wages & labour cost'
-                  : 'Record operational expense'}
+                {categoryName
+                  ? `${editingItem ? 'Editing in' : 'Adding to'} ${categoryName}`
+                  : isManpower
+                    ? 'Record daily wages & labour cost'
+                    : 'Record operational expense'}
               </Text>
             </View>
           </View>
           <TouchableOpacity
             style={styles.closeBtn}
             onPress={handleCloseAdd}
+            disabled={isSaving}
             hitSlop={8}
           >
             <X size={18} color={colors.textSecondary} />
@@ -413,7 +690,7 @@ export function ExpensesScreen({ mode = 'GENERAL' }: { mode?: ExpensesMode }) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {!isManpower ? (
+          {!isManpower && !hasFixedCategory ? (
             <View style={styles.sectionBlock}>
               <Text style={styles.fieldLabel}>Category *</Text>
               <View style={styles.chipGrid}>
@@ -443,10 +720,11 @@ export function ExpensesScreen({ mode = 'GENERAL' }: { mode?: ExpensesMode }) {
 
           <View style={styles.sectionBlock}>
             <Text style={styles.fieldLabel}>
-              {isManpower ? 'Worker / Purpose *' : 'Title *'}
+              {isManpower ? 'Worker / Purpose' : 'Title'}{' '}
+              <Text style={styles.requiredStar}>*</Text>
             </Text>
             <BottomSheetTextInput
-              style={styles.input}
+              style={[styles.input, isDetailMode && styles.inputLocked]}
               placeholder={
                 isManpower
                   ? 'e.g. Packing staff daily wages'
@@ -455,11 +733,14 @@ export function ExpensesScreen({ mode = 'GENERAL' }: { mode?: ExpensesMode }) {
               placeholderTextColor={colors.textMuted}
               value={title}
               onChangeText={setTitle}
+              editable={!isSaving && !isDetailMode}
             />
           </View>
 
           <View style={styles.sectionBlock}>
-            <Text style={styles.fieldLabel}>Amount (₹) *</Text>
+            <Text style={styles.fieldLabel}>
+              Amount (₹) <Text style={styles.requiredStar}>*</Text>
+            </Text>
             <View style={styles.amountInputWrap}>
               <View style={styles.currencyPrefix}>
                 <Text style={styles.currencySymbol}>₹</Text>
@@ -471,27 +752,94 @@ export function ExpensesScreen({ mode = 'GENERAL' }: { mode?: ExpensesMode }) {
                 keyboardType="decimal-pad"
                 value={amountText}
                 onChangeText={setAmountText}
+                editable={!isCreating}
               />
             </View>
           </View>
 
           <View style={styles.sectionBlock}>
-            <Text style={styles.fieldLabel}>Notes (Optional)</Text>
+            <Text style={styles.fieldLabel}>Date</Text>
+            <TouchableOpacity
+              style={styles.dateSelector}
+              activeOpacity={0.75}
+              onPress={() => setCalendarOpen((prev) => !prev)}
+              disabled={isCreating}
+            >
+              <View style={styles.dateSelectorLeft}>
+                <Calendar size={17} color={colors.primary} />
+                <Text style={styles.dateSelectorText}>
+                  {fmtDate(expenseDate)}
+                </Text>
+              </View>
+              <ChevronDown
+                size={18}
+                color={colors.textSecondary}
+                style={calendarOpen ? styles.chevronRotated : undefined}
+              />
+            </TouchableOpacity>
+            {calendarOpen ? (
+              <View style={styles.calendarWrap}>
+                <RNCalendar
+                  current={expenseDate}
+                  maxDate={todayIsoDate()}
+                  onDayPress={(day) => {
+                    setExpenseDate(day.dateString);
+                    setCalendarOpen(false);
+                  }}
+                  markedDates={{
+                    [expenseDate]: {
+                      selected: true,
+                      selectedColor: colors.primary,
+                      selectedTextColor: colors.surface,
+                    },
+                  }}
+                  theme={{
+                    backgroundColor: colors.surface,
+                    calendarBackground: colors.surface,
+                    textSectionTitleColor: colors.textSecondary,
+                    selectedDayBackgroundColor: colors.primary,
+                    selectedDayTextColor: colors.surface,
+                    todayTextColor: colors.primary,
+                    dayTextColor: colors.textPrimary,
+                    textDisabledColor: colors.textMuted,
+                    arrowColor: colors.primary,
+                    monthTextColor: colors.textPrimary,
+                    textDayFontWeight: '500',
+                    textMonthFontWeight: '700',
+                    textDayHeaderFontWeight: '600',
+                    textDayFontSize: 13,
+                    textMonthFontSize: 15,
+                    textDayHeaderFontSize: 12,
+                  }}
+                />
+              </View>
+            ) : null}
+          </View>
+
+          <View style={styles.sectionBlock}>
+            <Text style={styles.fieldLabel}>Description</Text>
             <BottomSheetTextInput
               style={[styles.input, styles.multiline]}
               placeholder="Add bill number, worker count, or details..."
               placeholderTextColor={colors.textMuted}
               value={notes}
               onChangeText={setNotes}
+              editable={!isCreating}
               multiline
             />
           </View>
 
           <View style={styles.saveWrap}>
             <AuthButton
-              title={isManpower ? 'Save Manpower Expense' : 'Save Expense'}
-              onPress={handleCreate}
-              loading={isCreating}
+              title={
+                editingItem
+                  ? 'Save Changes'
+                  : isManpower
+                    ? 'Save Manpower Expense'
+                    : 'Save Expense'
+              }
+              onPress={handleSave}
+              loading={isSaving}
             />
           </View>
         </BottomSheetScrollView>
@@ -505,6 +853,95 @@ export function ExpensesScreen({ mode = 'GENERAL' }: { mode?: ExpensesMode }) {
         onCancel={() => setDeleteTarget(null)}
         onConfirm={handleConfirmDelete}
       />
+
+      {/* Month Filter Modal (Detail Mode Header - Month & Year Only) */}
+      <Modal
+        visible={filterModalOpen}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setFilterModalOpen(false)}
+      >
+        <View style={styles.filterModalBackdrop}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setFilterModalOpen(false)}
+          />
+          <View style={styles.filterModalCard}>
+            <View style={styles.filterModalHeader}>
+              <Text style={styles.filterModalTitle}>Select Month</Text>
+              <TouchableOpacity
+                onPress={() => setFilterModalOpen(false)}
+                hitSlop={8}
+                style={styles.closeBtn}
+              >
+                <X size={18} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.yearSwitchRow}>
+              <TouchableOpacity
+                style={styles.yearArrowBtn}
+                onPress={() => setPickerYear((y) => y - 1)}
+                activeOpacity={0.75}
+              >
+                <ChevronLeft size={18} color={colors.textPrimary} />
+              </TouchableOpacity>
+              <Text style={styles.yearText}>{pickerYear}</Text>
+              {pickerYear < now.getFullYear() ? (
+                <TouchableOpacity
+                  style={styles.yearArrowBtn}
+                  onPress={() => setPickerYear((y) => y + 1)}
+                  activeOpacity={0.75}
+                >
+                  <ChevronRight size={18} color={colors.textPrimary} />
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.yearArrowPlaceholder} />
+              )}
+            </View>
+
+            <View style={styles.monthGrid}>
+              {MONTH_NAMES.map((mName, idx) => {
+                const monthNum = idx + 1;
+                if (
+                  pickerYear > now.getFullYear() ||
+                  (pickerYear === now.getFullYear() &&
+                    monthNum > now.getMonth() + 1)
+                ) {
+                  return null;
+                }
+                const isSelected =
+                  selectedMonth.year === pickerYear &&
+                  selectedMonth.month === monthNum;
+                return (
+                  <TouchableOpacity
+                    key={mName}
+                    style={[
+                      styles.monthCell,
+                      isSelected && styles.monthCellActive,
+                    ]}
+                    activeOpacity={0.75}
+                    onPress={() => {
+                      setSelectedMonth({ year: pickerYear, month: monthNum });
+                      setFilterModalOpen(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.monthCellText,
+                        isSelected && styles.monthCellTextActive,
+                      ]}
+                    >
+                      {mName}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -582,63 +1019,119 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
-    gap: 6,
+    gap: spacing.sm,
+    ...shadows.card,
   },
   cardTop: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: spacing.sm,
+    gap: spacing.md,
   },
   cardTitleWrap: {
     flex: 1,
-    gap: 4,
+    gap: 6,
   },
   cardTitle: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
+    lineHeight: 20,
   },
-  metaRow: {
+  dateBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  catPill: {
+    alignSelf: 'flex-start',
+    gap: 5,
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: radius.full,
     backgroundColor: colors.primarySoft,
   },
-  catPillText: {
-    fontSize: 10,
-    fontWeight: fontWeight.bold,
-    color: colors.primary,
-  },
-  dateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
   dateText: {
     fontSize: fontSize.xs,
-    color: colors.textSecondary,
+    fontWeight: fontWeight.semibold,
+    color: colors.primary,
   },
-  rightCol: {
-    alignItems: 'flex-end',
-    gap: 6,
+  amountPill: {
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 5,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  groupListRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: spacing.md,
+    ...shadows.card,
+  },
+  groupIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.sm,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  groupListTitle: {
+    flex: 1,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.textPrimary,
   },
   amountText: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
   },
-  deleteBtn: {
-    padding: 4,
-  },
   notesText: {
     fontSize: fontSize.xs,
     color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  cardActionsBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+  },
+  editActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: radius.md,
+    backgroundColor: colors.primarySoft,
+  },
+  editActionText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: colors.primary,
+  },
+  deleteActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: radius.md,
+    backgroundColor: colors.dangerBg,
+  },
+  deleteActionText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: colors.danger,
   },
   emptyBox: {
     alignItems: 'center',
@@ -771,6 +1264,10 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     color: colors.textPrimary,
   },
+  inputLocked: {
+    backgroundColor: colors.background,
+    color: colors.textSecondary,
+  },
   amountInputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -806,7 +1303,165 @@ const styles = StyleSheet.create({
     minHeight: 78,
     textAlignVertical: 'top',
   },
+  requiredStar: {
+    color: colors.danger,
+  },
+  dateSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSubtle,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+  },
+  dateSelectorLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  dateSelectorText: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
+    color: colors.textPrimary,
+  },
+  chevronRotated: {
+    transform: [{ rotate: '180deg' }],
+  },
+  calendarWrap: {
+    marginTop: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+  },
   saveWrap: {
     marginTop: spacing.sm,
+  },
+  headerCalBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.textPrimary,
+  },
+  headerCalText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  filterModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  filterModalCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.floating,
+  },
+  filterModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs,
+  },
+  filterModalTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  yearSwitchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surfaceSubtle,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs + 2,
+    marginTop: spacing.sm,
+  },
+  yearArrowBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  yearArrowPlaceholder: {
+    width: 34,
+    height: 34,
+  },
+  yearText: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  monthGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: spacing.md,
+  },
+  monthCell: {
+    width: '31%',
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  monthCellActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  monthCellText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.textPrimary,
+  },
+  monthCellTextActive: {
+    color: colors.surface,
+  },
+  filterModalActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  filterResetBtn: {
+    flex: 1,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterResetText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.textSecondary,
   },
 });

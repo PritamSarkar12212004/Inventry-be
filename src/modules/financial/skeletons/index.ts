@@ -4,3 +4,7 @@ export {
   PendingCustomersListSkeleton,
 } from './FinancialOverviewSkeleton';
 export { PendingInvoicesSkeleton } from './PendingInvoicesSkeleton';
+export {
+  ExpenseFooterSkeleton,
+  ExpenseListSkeleton,
+} from './ExpenseListSkeleton';

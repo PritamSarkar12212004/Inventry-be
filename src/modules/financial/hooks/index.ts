@@ -5,6 +5,11 @@ export {
   usePurchaseExpenseSummary,
   useProductExpenses,
   useInfiniteExpenses,
+  useInfiniteExpenseTitles,
   useCreateExpense,
+  useUpdateExpense,
   useDeleteExpense,
+  useInfiniteExpenseCategories,
+  useCreateExpenseCategory,
+  useDeleteExpenseCategory,
 } from './useFinancial';

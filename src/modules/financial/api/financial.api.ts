@@ -1,9 +1,13 @@
-import { apiDelete, apiGet, apiPost } from '../../../core/api';
+import { apiDelete, apiGet, apiPatch, apiPost } from '../../../core/api';
 import type {
+  CreateExpenseCategoryPayload,
   CreateExpensePayload,
   CustomerOutstandingResponse,
+  ExpenseCategoryItem,
+  ExpenseCategoryListResponse,
   ExpenseItem,
   ExpenseListResponse,
+  ExpenseTitleListResponse,
   FinancialOverviewData,
   PurchaseExpenseSummaryResponse,
 } from '../types';
@@ -30,10 +34,25 @@ export const financialApi = {
     page?: number;
     limit?: number;
     search?: string;
+    category?: string;
+    title?: string;
+    startDate?: string;
+    endDate?: string;
     productId?: string;
   }) =>
     apiGet<{ success: boolean; data: ExpenseListResponse }>(
       '/expenses',
+      params,
+    ),
+
+  getExpenseTitles: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    category?: string;
+  }) =>
+    apiGet<{ success: boolean; data: ExpenseTitleListResponse }>(
+      '/expenses/titles',
       params,
     ),
 
@@ -43,8 +62,35 @@ export const financialApi = {
       payload,
     ),
 
+  updateExpense: (id: string, payload: Partial<CreateExpensePayload>) =>
+    apiPatch<
+      { success: boolean; data: ExpenseItem },
+      Partial<CreateExpensePayload>
+    >(`/expenses/${id}`, payload),
+
   deleteExpense: (id: string) =>
     apiDelete<{ success: boolean; message?: string }>(
       `/expenses/${id}`,
+    ),
+
+  getExpenseCategories: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+  }) =>
+    apiGet<{ success: boolean; data: ExpenseCategoryListResponse }>(
+      '/expenses/categories',
+      params,
+    ),
+
+  createExpenseCategory: (payload: CreateExpenseCategoryPayload) =>
+    apiPost<
+      { success: boolean; data: ExpenseCategoryItem },
+      CreateExpenseCategoryPayload
+    >('/expenses/categories', payload),
+
+  deleteExpenseCategory: (id: string) =>
+    apiDelete<{ success: boolean; message?: string }>(
+      `/expenses/categories/${id}`,
     ),
 };
