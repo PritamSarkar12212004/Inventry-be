@@ -19,8 +19,11 @@ import {
   type BottomSheetBackdropProps,
 } from '@gorhom/bottom-sheet';
 import {
+  Calendar,
   ChevronRight,
   FolderPlus,
+  IndianRupee,
+  Layers,
   Plus,
   Receipt,
   Search,
@@ -28,6 +31,7 @@ import {
 } from 'lucide-react-native';
 import type { AxiosError } from 'axios';
 import type { RootStackParamList } from '../../../core/navigation/types';
+import { SkeletonBox } from '../../../core/components/SkeletonBox';
 import { useDebounce } from '../../../core/hooks/useDebounce';
 import { popup } from '../../../core/store/popupStore';
 import {
@@ -47,8 +51,15 @@ import {
   ExpenseFooterSkeleton,
   ExpenseListSkeleton,
 } from '../skeletons';
+import type { ExpenseCategoryOverview } from '../types';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
+
+function fmtMoney(val?: number): string {
+  return `₹${Number(val || 0).toLocaleString('en-IN', {
+    maximumFractionDigits: 0,
+  })}`;
+}
 
 export function GeneralExpensesScreen() {
   const navigation = useNavigation<NavProp>();
@@ -76,8 +87,15 @@ export function GeneralExpensesScreen() {
     () => data?.pages.flatMap((p) => p.items) ?? [],
     [data],
   );
+  const lastOverviewRef = useRef<ExpenseCategoryOverview | undefined>(undefined);
+  if (data?.pages?.[0]?.overview) {
+    lastOverviewRef.current = data.pages[0].overview;
+  }
+  const overview = data?.pages?.[0]?.overview ?? lastOverviewRef.current;
   const totalCount =
-    data?.pages?.[0]?.pagination?.total ?? categories.length;
+    overview?.totalCategories ??
+    data?.pages?.[0]?.pagination?.total ??
+    categories.length;
 
   const resetForm = () => {
     setName('');
@@ -135,22 +153,102 @@ export function GeneralExpensesScreen() {
     );
   };
 
-  return (
-    <View style={styles.screen}>
-      <View style={styles.topBar}>
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryIcon}>
-            <Receipt size={18} color={colors.primary} />
+  const renderOverviewCard = () => {
+    if (isLoading && !overview) {
+      return (
+        <View style={[styles.overviewCard, styles.overviewScrollSpacing]}>
+          <View style={styles.overviewHeaderRow}>
+            <View>
+              <SkeletonBox width={108} height={11} />
+              <SkeletonBox width={128} height={16} style={styles.mt6} />
+            </View>
+            <SkeletonBox width={78} height={24} borderRadius={radius.full} />
           </View>
-          <View style={styles.summaryTextWrap}>
-            <Text style={styles.summaryLabel}>General Categories</Text>
-            <Text style={styles.summaryCount}>
-              {totalCount}{' '}
-              {totalCount === 1 ? 'category' : 'categories'}
+          <View style={styles.metricsRow}>
+            {[0, 1, 2].map((k) => (
+              <View key={k} style={styles.metricTile}>
+                <SkeletonBox width="65%" height={11} />
+                <SkeletonBox width="55%" height={16} style={styles.mt6} />
+              </View>
+            ))}
+          </View>
+          <View style={styles.statusRow}>
+            <SkeletonBox width="100%" height={28} borderRadius={radius.sm} />
+          </View>
+        </View>
+      );
+    }
+
+    return (
+      <TouchableOpacity
+        style={[styles.overviewCard, styles.overviewScrollSpacing]}
+        activeOpacity={0.85}
+        onPress={() => navigation.navigate('GeneralExpensesOverview')}
+      >
+        <View style={styles.overviewHeaderRow}>
+          <View>
+            <Text style={styles.eyebrow}>EXPENSES OVERVIEW</Text>
+            <Text style={styles.overviewHeading}>General Summary</Text>
+          </View>
+          <View style={styles.overviewHeaderRight}>
+            <View style={styles.entriesBadge}>
+              <Text style={styles.entriesBadgeText}>
+                {(overview?.totalEntries ?? 0).toLocaleString('en-IN')}{' '}
+                {overview?.totalEntries === 1 ? 'Entry' : 'Entries'}
+              </Text>
+            </View>
+            <ChevronRight size={16} color={colors.textMuted} />
+          </View>
+        </View>
+
+        <View style={styles.metricsRow}>
+          <View style={styles.metricTile}>
+            <View style={styles.metricLabelRow}>
+              <IndianRupee size={12} color={colors.primary} />
+              <Text style={styles.metricLabel}>Total Spend</Text>
+            </View>
+            <Text style={styles.metricVal} numberOfLines={1}>
+              {fmtMoney(overview?.totalExpenses)}
+            </Text>
+          </View>
+
+          <View style={styles.metricTile}>
+            <View style={styles.metricLabelRow}>
+              <Layers size={12} color={colors.primary} />
+              <Text style={styles.metricLabel}>Categories</Text>
+            </View>
+            <Text style={styles.metricVal}>{totalCount}</Text>
+          </View>
+
+          <View style={styles.metricTile}>
+            <View style={styles.metricLabelRow}>
+              <Calendar size={12} color={colors.primary} />
+              <Text style={styles.metricLabel}>This Month</Text>
+            </View>
+            <Text style={styles.metricVal} numberOfLines={1}>
+              {fmtMoney(overview?.thisMonthAmount)}
             </Text>
           </View>
         </View>
 
+        {overview?.topCategory ? (
+          <View style={styles.statusRow}>
+            <View style={styles.statusChip}>
+              <View style={styles.topDot} />
+              <Text style={styles.statusText} numberOfLines={1}>
+                Top Spend: {overview.topCategory.name} (
+                {fmtMoney(overview.topCategory.totalAmount)})
+              </Text>
+            </View>
+          </View>
+        ) : null}
+      </TouchableOpacity>
+    );
+  };
+
+  return (
+    <View style={styles.screen}>
+      <View style={styles.topBar}>
         <View style={styles.searchBox}>
           <Search size={16} color={colors.textMuted} />
           <TextInput
@@ -169,13 +267,17 @@ export function GeneralExpensesScreen() {
       </View>
 
       {isLoading && categories.length === 0 ? (
-        <ExpenseListSkeleton />
+        <View style={styles.initialLoadingWrap}>
+          <View style={styles.initialOverviewPad}>{renderOverviewCard()}</View>
+          <ExpenseListSkeleton />
+        </View>
       ) : (
         <FlatList
           data={categories}
           keyExtractor={(item) => item._id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={renderOverviewCard}
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
@@ -328,39 +430,121 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.borderSubtle,
   },
-  summaryCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primarySoft,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  summaryIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.sm,
+  overviewCard: {
     backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    ...shadows.card,
   },
-  summaryTextWrap: {
+  overviewScrollSpacing: {
+    marginBottom: spacing.xs,
+  },
+  initialLoadingWrap: {
     flex: 1,
   },
-  summaryLabel: {
-    fontSize: fontSize.sm,
+  initialOverviewPad: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+  },
+  overviewHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  overviewHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  eyebrow: {
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+    color: colors.textMuted,
+    letterSpacing: 0.7,
+  },
+  overviewHeading: {
+    fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
-  },
-  summaryCount: {
-    fontSize: fontSize.xs,
-    color: colors.textSecondary,
     marginTop: 1,
   },
-  summaryTotal: {
-    fontSize: fontSize.lg,
+  entriesBadge: {
+    backgroundColor: colors.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+  },
+  entriesBadgeText: {
+    fontSize: 11,
+    fontWeight: fontWeight.semibold,
+    color: colors.textSecondary,
+  },
+  metricsRow: {
+    flexDirection: 'row',
+    gap: spacing.xs + 2,
+    marginTop: spacing.sm + 2,
+  },
+  metricTile: {
+    flex: 1,
+    backgroundColor: colors.surfaceSubtle,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+  },
+  metricLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  metricLabel: {
+    fontSize: 11,
+    fontWeight: fontWeight.medium,
+    color: colors.textSecondary,
+  },
+  metricVal: {
+    fontSize: fontSize.sm + 1,
     fontWeight: fontWeight.bold,
-    color: colors.primary,
+    color: colors.textPrimary,
+    marginTop: 4,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.sm + 2,
+  },
+  statusChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  topDot: {
+    width: 6,
+    height: 6,
+    borderRadius: radius.full,
+    backgroundColor: colors.primary,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: fontWeight.semibold,
+    color: colors.textPrimary,
+  },
+  mt6: {
+    marginTop: 6,
   },
   searchBox: {
     flexDirection: 'row',

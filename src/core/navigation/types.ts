@@ -52,12 +52,19 @@ export type RootStackParamList = {
   EditProfile: undefined;
   Finance: undefined;
   GeneralExpenses: undefined;
+  GeneralExpensesOverview: undefined;
   CategoryExpenses: { categoryCode: string; categoryName: string };
   ExpenseTitleDetail: {
     title: string;
     mode: 'GENERAL' | 'MANPOWER';
     categoryCode?: string;
     categoryName?: string;
+  };
+  ExpensesOverviewDetail: {
+    mode: 'GENERAL' | 'MANPOWER';
+    categoryCode?: string;
+    categoryName?: string;
+    titleFilter?: string;
   };
   ManpowerExpenses: undefined;
   BusinessHub: undefined;

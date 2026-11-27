@@ -32,6 +32,9 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Hash,
+  IndianRupee,
+  Layers,
   Pencil,
   Plus,
   Receipt,
@@ -44,6 +47,7 @@ import { Calendar as RNCalendar } from 'react-native-calendars';
 import type { AxiosError } from 'axios';
 import type { RootStackParamList } from '../../../core/navigation/types';
 import { IosConfirmModal } from '../../../core/components/IosConfirmModal';
+import { SkeletonBox } from '../../../core/components/SkeletonBox';
 import { useDebounce } from '../../../core/hooks/useDebounce';
 import { popup } from '../../../core/store/popupStore';
 import {
@@ -272,6 +276,23 @@ export function ExpensesScreen({
     return titlesQuery.data?.pages.flatMap((p) => p.items) ?? [];
   }, [titlesQuery.data, isDetailMode]);
 
+  const lastTitleSummaryRef = useRef<{
+    totalAmount: number;
+    totalEntries: number;
+    totalItems: number;
+    thisMonthAmount?: number;
+    topItem?: { title: string; totalAmount: number } | null;
+  } | null>(null);
+  if (!isDetailMode && titlesQuery.data?.pages?.[0]?.summary) {
+    lastTitleSummaryRef.current = titlesQuery.data.pages[0].summary;
+  }
+  const titleSummary =
+    titlesQuery.data?.pages?.[0]?.summary ?? lastTitleSummaryRef.current;
+
+  const hasOverviewData = isDetailMode
+    ? Boolean(expensesQuery.data?.pages?.[0])
+    : Boolean(titleSummary);
+
   const totalAmount = useMemo(() => {
     if (isDetailMode) {
       return (
@@ -282,15 +303,15 @@ export function ExpensesScreen({
         )
       );
     }
-    return titlesQuery.data?.pages?.[0]?.summary?.totalAmount ?? 0;
-  }, [isDetailMode, expensesQuery.data, titlesQuery.data, items]);
+    return titleSummary?.totalAmount ?? 0;
+  }, [isDetailMode, expensesQuery.data, titleSummary, items]);
 
   const totalEntries = isDetailMode
     ? expensesQuery.data?.pages?.[0]?.pagination?.total ?? items.length
-    : titlesQuery.data?.pages?.[0]?.summary?.totalEntries ?? 0;
+    : titleSummary?.totalEntries ?? 0;
 
   const totalItemsCount =
-    titlesQuery.data?.pages?.[0]?.summary?.totalItems ?? groupedItems.length;
+    titleSummary?.totalItems ?? groupedItems.length;
 
   const resetForm = () => {
     setEditingItem(null);
@@ -425,34 +446,130 @@ export function ExpensesScreen({
     });
   };
 
-  return (
-    <View style={styles.screen}>
-      {/* Summary + Search Header */}
-      <View style={styles.topBar}>
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryIcon}>
-            {isManpower ? (
-              <Users size={18} color={colors.primary} />
-            ) : (
-              <Receipt size={18} color={colors.primary} />
-            )}
+  const renderOverviewCard = () => {
+    if (isLoading && !hasOverviewData) {
+      return (
+        <View style={[styles.overviewCard, styles.overviewScrollSpacing]}>
+          <View style={styles.overviewHeaderRow}>
+            <View>
+              <SkeletonBox width={108} height={11} />
+              <SkeletonBox width={128} height={16} style={styles.mt6} />
+            </View>
+            <SkeletonBox width={78} height={24} borderRadius={radius.full} />
           </View>
-          <View style={styles.summaryTextWrap}>
-            <Text style={styles.summaryLabel}>
-              {titleFilter ||
-                categoryName ||
-                (isManpower ? 'Manpower Expenses' : 'General Expenses')}
-            </Text>
-            <Text style={styles.summaryCount}>
-              {isDetailMode
-                ? `${totalEntries} ${totalEntries === 1 ? 'entry' : 'entries'}${monthRange ? ` • ${monthRange.label}` : ''}`
-                : `${totalItemsCount} ${totalItemsCount === 1 ? 'item' : 'items'} • ${totalEntries} ${totalEntries === 1 ? 'entry' : 'entries'}`}
+          <View style={styles.metricsRow}>
+            {[0, 1, 2].map((k) => (
+              <View key={k} style={styles.metricTile}>
+                <SkeletonBox width="65%" height={11} />
+                <SkeletonBox width="55%" height={16} style={styles.mt6} />
+              </View>
+            ))}
+          </View>
+        </View>
+      );
+    }
+
+    const headingText =
+      titleFilter ||
+      categoryName ||
+      (isManpower ? 'Manpower Summary' : 'Category Summary');
+    const eyebrowText = isDetailMode
+      ? 'ITEM OVERVIEW'
+      : isManpower
+        ? 'MANPOWER OVERVIEW'
+        : 'CATEGORY OVERVIEW';
+
+    return (
+      <TouchableOpacity
+        style={[styles.overviewCard, styles.overviewScrollSpacing]}
+        activeOpacity={0.85}
+        onPress={() =>
+          navigation.navigate('ExpensesOverviewDetail', {
+            mode,
+            categoryCode,
+            categoryName,
+            titleFilter,
+          })
+        }
+      >
+        <View style={styles.overviewHeaderRow}>
+          <View style={styles.overviewTitleWrap}>
+            <Text style={styles.eyebrow}>{eyebrowText}</Text>
+            <Text style={styles.overviewHeading} numberOfLines={1}>
+              {headingText}
             </Text>
           </View>
-          <Text style={styles.summaryTotal}>{fmtMoney(totalAmount)}</Text>
+          <View style={styles.overviewHeaderRight}>
+            <View style={styles.entriesBadge}>
+              <Text style={styles.entriesBadgeText}>
+                {isDetailMode && monthRange
+                  ? monthRange.label
+                  : `${totalEntries.toLocaleString('en-IN')} ${totalEntries === 1 ? 'Entry' : 'Entries'}`}
+              </Text>
+            </View>
+            <ChevronRight size={16} color={colors.textMuted} />
+          </View>
         </View>
 
-        {!isDetailMode ? (
+        <View style={styles.metricsRow}>
+          <View style={styles.metricTile}>
+            <View style={styles.metricLabelRow}>
+              <IndianRupee size={12} color={colors.primary} />
+              <Text style={styles.metricLabel}>
+                {isDetailMode ? 'Spend' : 'Total Spend'}
+              </Text>
+            </View>
+            <Text style={styles.metricVal} numberOfLines={1}>
+              {fmtMoney(totalAmount)}
+            </Text>
+          </View>
+
+          <View style={styles.metricTile}>
+            <View style={styles.metricLabelRow}>
+              <Layers size={12} color={colors.primary} />
+              <Text style={styles.metricLabel}>
+                {isDetailMode ? 'Entries' : 'Items'}
+              </Text>
+            </View>
+            <Text style={styles.metricVal}>
+              {isDetailMode ? totalEntries : totalItemsCount}
+            </Text>
+          </View>
+
+          <View style={styles.metricTile}>
+            <View style={styles.metricLabelRow}>
+              <Hash size={12} color={colors.primary} />
+              <Text style={styles.metricLabel}>
+                {isDetailMode ? 'Avg / Entry' : 'This Month'}
+              </Text>
+            </View>
+            <Text style={styles.metricVal} numberOfLines={1}>
+              {isDetailMode
+                ? fmtMoney(totalEntries > 0 ? totalAmount / totalEntries : 0)
+                : fmtMoney(titleSummary?.thisMonthAmount)}
+            </Text>
+          </View>
+        </View>
+
+        {!isDetailMode && titleSummary?.topItem ? (
+          <View style={styles.statusRow}>
+            <View style={styles.statusChip}>
+              <View style={styles.topDot} />
+              <Text style={styles.statusText} numberOfLines={1}>
+                Top Spend: {titleSummary.topItem.title} (
+                {fmtMoney(titleSummary.topItem.totalAmount)})
+              </Text>
+            </View>
+          </View>
+        ) : null}
+      </TouchableOpacity>
+    );
+  };
+
+  return (
+    <View style={styles.screen}>
+      {!isDetailMode ? (
+        <View style={styles.topBar}>
           <View style={styles.searchBox}>
             <Search size={16} color={colors.textMuted} />
             <TextInput
@@ -470,17 +587,21 @@ export function ExpensesScreen({
               </TouchableOpacity>
             ) : null}
           </View>
-        ) : null}
-      </View>
+        </View>
+      ) : null}
 
       {isLoading && (isDetailMode ? items.length === 0 : groupedItems.length === 0) ? (
-        <ExpenseListSkeleton />
+        <View style={styles.initialLoadingWrap}>
+          <View style={styles.initialOverviewPad}>{renderOverviewCard()}</View>
+          <ExpenseListSkeleton />
+        </View>
       ) : isDetailMode ? (
         <FlatList
           data={items}
           keyExtractor={(item) => item._id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={renderOverviewCard}
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
@@ -561,6 +682,7 @@ export function ExpensesScreen({
           keyExtractor={(group) => group.key}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={renderOverviewCard}
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
@@ -953,44 +1075,128 @@ const styles = StyleSheet.create({
   },
   topBar: {
     padding: spacing.md,
-    paddingBottom: spacing.xs,
-    gap: spacing.sm,
-  },
-  summaryCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
     backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadows.card,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
   },
-  summaryIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: radius.md,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  summaryTextWrap: {
+  initialLoadingWrap: {
     flex: 1,
   },
-  summaryLabel: {
-    fontSize: fontSize.sm,
+  initialOverviewPad: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+  },
+  overviewCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    ...shadows.card,
+  },
+  overviewScrollSpacing: {
+    marginBottom: spacing.xs,
+  },
+  overviewHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  overviewTitleWrap: {
+    flex: 1,
+  },
+  overviewHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  eyebrow: {
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+    color: colors.textMuted,
+    letterSpacing: 0.7,
+  },
+  overviewHeading: {
+    fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
+    marginTop: 1,
   },
-  summaryCount: {
-    fontSize: fontSize.xs,
+  entriesBadge: {
+    backgroundColor: colors.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+  },
+  entriesBadgeText: {
+    fontSize: 11,
+    fontWeight: fontWeight.semibold,
     color: colors.textSecondary,
   },
-  summaryTotal: {
-    fontSize: fontSize.lg,
+  metricsRow: {
+    flexDirection: 'row',
+    gap: spacing.xs + 2,
+    marginTop: spacing.sm + 2,
+  },
+  metricTile: {
+    flex: 1,
+    backgroundColor: colors.surfaceSubtle,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+  },
+  metricLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  metricLabel: {
+    fontSize: 11,
+    fontWeight: fontWeight.medium,
+    color: colors.textSecondary,
+  },
+  metricVal: {
+    fontSize: fontSize.sm + 1,
     fontWeight: fontWeight.bold,
-    color: colors.primary,
+    color: colors.textPrimary,
+    marginTop: 4,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.sm + 2,
+  },
+  statusChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  topDot: {
+    width: 6,
+    height: 6,
+    borderRadius: radius.full,
+    backgroundColor: colors.primary,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: fontWeight.semibold,
+    color: colors.textPrimary,
+  },
+  mt6: {
+    marginTop: 6,
   },
   searchBox: {
     flexDirection: 'row',

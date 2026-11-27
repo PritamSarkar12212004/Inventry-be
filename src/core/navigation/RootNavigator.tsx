@@ -33,9 +33,11 @@ import {
 } from '../../modules/orders';
 import {
   CustomerPendingDetailScreen,
+  ExpensesOverviewDetailScreen,
   ExpensesScreen,
   FinancialOverviewDetailScreen,
   FinancialScreen,
+  GeneralExpensesOverviewScreen,
   GeneralExpensesScreen,
   SupplierOverviewDetailScreen,
   SupplierPurchaseDetailScreen,
@@ -222,6 +224,11 @@ export default function RootNavigator() {
               options={{ title: 'General Expenses' }}
             />
             <RootStack.Screen
+              name="GeneralExpensesOverview"
+              component={GeneralExpensesOverviewScreen}
+              options={{ title: 'Expenses Overview' }}
+            />
+            <RootStack.Screen
               name="CategoryExpenses"
               component={CategoryExpensesScreen}
               options={({ route }) => ({
@@ -234,6 +241,11 @@ export default function RootNavigator() {
               options={({ route }) => ({
                 title: route.params.title || 'History',
               })}
+            />
+            <RootStack.Screen
+              name="ExpensesOverviewDetail"
+              component={ExpensesOverviewDetailScreen}
+              options={{ title: 'Expenses Overview' }}
             />
             <RootStack.Screen
               name="ManpowerExpenses"

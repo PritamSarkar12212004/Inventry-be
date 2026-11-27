@@ -47,8 +47,20 @@ export type ExpenseCategoryItem = {
   createdAt?: string;
 };
 
+export type ExpenseCategoryOverview = {
+  totalCategories: number;
+  totalExpenses: number;
+  totalEntries: number;
+  thisMonthAmount: number;
+  topCategory?: {
+    name: string;
+    totalAmount: number;
+  } | null;
+};
+
 export type ExpenseCategoryListResponse = {
   items: ExpenseCategoryItem[];
+  overview?: ExpenseCategoryOverview;
   pagination?: PaginationMeta;
 };
 
@@ -100,6 +112,11 @@ export type ExpenseTitleListResponse = {
     totalAmount: number;
     totalEntries: number;
     totalItems: number;
+    thisMonthAmount?: number;
+    topItem?: {
+      title: string;
+      totalAmount: number;
+    } | null;
   };
   pagination?: PaginationMeta;
 };

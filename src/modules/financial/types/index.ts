@@ -7,6 +7,7 @@ export type {
   ExpenseCategory,
   ExpenseCategoryItem,
   ExpenseCategoryListResponse,
+  ExpenseCategoryOverview,
   ExpenseItem,
   ExpenseLineItem,
   ExpenseListResponse,

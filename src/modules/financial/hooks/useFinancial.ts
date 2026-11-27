@@ -35,10 +35,36 @@ export const FINANCIAL_QUERY_KEYS = {
       startDate,
       endDate,
     ] as const,
-  expenseTitles: (search?: string, category?: string) =>
-    ['financial', 'expense-titles', search, category] as const,
-  expenseCategories: (search?: string) =>
-    ['financial', 'expense-categories', search] as const,
+  expenseTitles: (
+    search?: string,
+    category?: string,
+    startDate?: string,
+    endDate?: string,
+    limit = 15,
+  ) =>
+    [
+      'financial',
+      'expense-titles',
+      search,
+      category,
+      startDate,
+      endDate,
+      limit,
+    ] as const,
+  expenseCategories: (
+    search?: string,
+    startDate?: string,
+    endDate?: string,
+    limit = 12,
+  ) =>
+    [
+      'financial',
+      'expense-categories',
+      search,
+      startDate,
+      endDate,
+      limit,
+    ] as const,
 };
 
 export function useFinancialOverview() {
@@ -132,17 +158,28 @@ export function useInfiniteExpenseTitles(
   search?: string,
   category?: string,
   enabled = true,
+  startDate?: string,
+  endDate?: string,
+  limit = 15,
 ) {
   return useInfiniteQuery({
-    queryKey: FINANCIAL_QUERY_KEYS.expenseTitles(search, category),
+    queryKey: FINANCIAL_QUERY_KEYS.expenseTitles(
+      search,
+      category,
+      startDate,
+      endDate,
+      limit,
+    ),
     initialPageParam: 1,
     enabled,
     queryFn: async ({ pageParam }) => {
       const res = await financialApi.getExpenseTitles({
         page: pageParam,
-        limit: 15,
+        limit,
         search: search || undefined,
         category: category || undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
       });
       return {
         items: res.data?.items ?? [],
@@ -198,18 +235,31 @@ export function useDeleteExpense() {
   });
 }
 
-export function useInfiniteExpenseCategories(search?: string) {
+export function useInfiniteExpenseCategories(
+  search?: string,
+  startDate?: string,
+  endDate?: string,
+  limit = 12,
+) {
   return useInfiniteQuery({
-    queryKey: FINANCIAL_QUERY_KEYS.expenseCategories(search),
+    queryKey: FINANCIAL_QUERY_KEYS.expenseCategories(
+      search,
+      startDate,
+      endDate,
+      limit,
+    ),
     initialPageParam: 1,
     queryFn: async ({ pageParam }) => {
       const res = await financialApi.getExpenseCategories({
         page: pageParam,
-        limit: 12,
+        limit,
         search: search || undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
       });
       return {
         items: res.data?.items ?? [],
+        overview: res.data?.overview,
         pagination: res.data?.pagination,
       };
     },

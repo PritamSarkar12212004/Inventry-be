@@ -50,6 +50,8 @@ export const financialApi = {
     limit?: number;
     search?: string;
     category?: string;
+    startDate?: string;
+    endDate?: string;
   }) =>
     apiGet<{ success: boolean; data: ExpenseTitleListResponse }>(
       '/expenses/titles',
@@ -77,6 +79,8 @@ export const financialApi = {
     page?: number;
     limit?: number;
     search?: string;
+    startDate?: string;
+    endDate?: string;
   }) =>
     apiGet<{ success: boolean; data: ExpenseCategoryListResponse }>(
       '/expenses/categories',
