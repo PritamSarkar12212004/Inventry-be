@@ -1,3 +1,4 @@
+export { AnalyticsScreen } from './AnalyticsScreen';
 export { ExpensesHubScreen } from './ExpensesHubScreen';
 export { GeneralExpensesScreen } from './GeneralExpensesScreen';
 export { GeneralExpensesOverviewScreen } from './GeneralExpensesOverviewScreen';

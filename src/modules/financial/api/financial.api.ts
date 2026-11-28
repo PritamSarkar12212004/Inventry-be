@@ -1,5 +1,6 @@
 import { apiDelete, apiGet, apiPatch, apiPost } from '../../../core/api';
 import type {
+  BusinessAnalyticsData,
   CreateExpenseCategoryPayload,
   CreateExpensePayload,
   CustomerOutstandingResponse,
@@ -17,6 +18,12 @@ export const financialApi = {
   getOverview: (params?: { startDate?: string; endDate?: string }) =>
     apiGet<{ success: boolean; data: FinancialOverviewData }>(
       '/financial/overview',
+      params,
+    ),
+
+  getAnalytics: (params?: { startDate?: string; endDate?: string }) =>
+    apiGet<{ success: boolean; data: BusinessAnalyticsData }>(
+      '/financial/analytics',
       params,
     ),
 

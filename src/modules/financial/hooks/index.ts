@@ -1,5 +1,6 @@
 export {
   FINANCIAL_QUERY_KEYS,
+  useBusinessAnalytics,
   useCustomerOutstanding,
   useFinancialOverview,
   useInfiniteFinancialTransactions,

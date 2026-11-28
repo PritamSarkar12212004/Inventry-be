@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
+  BarChart3,
   BellRing,
   Building2,
   ChevronRight,
@@ -69,7 +70,7 @@ export function ProfileTabScreen({ onCloseDrawer }: ProfileTabScreenProps = {}) 
   };
 
   const handleNavigate = (
-    screen: 'EditProfile' | 'Finance' | 'BusinessHub' | 'Reminders',
+    screen: 'Analytics' | 'EditProfile' | 'Finance' | 'BusinessHub' | 'Reminders',
   ) => {
     onCloseDrawer?.();
     navigation.navigate(screen);
@@ -117,6 +118,25 @@ export function ProfileTabScreen({ onCloseDrawer }: ProfileTabScreenProps = {}) 
         {/* Settings List */}
         <Text style={styles.sectionLabel}>ACCOUNT & SETTINGS</Text>
         <View style={styles.menuGroup}>
+          <TouchableOpacity
+            style={styles.menuRow}
+            activeOpacity={0.75}
+            onPress={() => handleNavigate('Analytics')}
+          >
+            <View style={styles.iconBox}>
+              <BarChart3 size={19} color={colors.primary} />
+            </View>
+            <View style={styles.menuInfo}>
+              <Text style={styles.menuTitle}>Analytics & Excel</Text>
+              <Text style={styles.menuSub}>
+                Business insights & report downloads
+              </Text>
+            </View>
+            <ChevronRight size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+
+          <View style={styles.divider} />
+
           <TouchableOpacity
             style={styles.menuRow}
             activeOpacity={0.75}

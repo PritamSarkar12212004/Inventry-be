@@ -14,6 +14,8 @@ export const FINANCIAL_QUERY_KEYS = {
   all: ['financial'] as const,
   overview: (startDate?: string, endDate?: string) =>
     ['financial', 'overview', startDate, endDate] as const,
+  analytics: (startDate?: string, endDate?: string) =>
+    ['financial', 'analytics', startDate, endDate] as const,
   transactions: (
     startDate?: string,
     endDate?: string,
@@ -90,6 +92,18 @@ export function useFinancialOverview(startDate?: string, endDate?: string) {
     queryKey: FINANCIAL_QUERY_KEYS.overview(startDate, endDate),
     queryFn: async () => {
       const res = await financialApi.getOverview(
+        startDate || endDate ? { startDate, endDate } : undefined,
+      );
+      return res.data;
+    },
+  });
+}
+
+export function useBusinessAnalytics(startDate?: string, endDate?: string) {
+  return useQuery({
+    queryKey: FINANCIAL_QUERY_KEYS.analytics(startDate, endDate),
+    queryFn: async () => {
+      const res = await financialApi.getAnalytics(
         startDate || endDate ? { startDate, endDate } : undefined,
       );
       return res.data;

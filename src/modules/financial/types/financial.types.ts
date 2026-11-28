@@ -316,3 +316,93 @@ export type PurchaseExpenseSummaryResponse = {
   suppliers: SupplierSummaryItem[];
   purchases: PurchaseEntryDetailItem[];
 };
+
+export type AnalyticsExportType =
+  | 'ALL'
+  | 'PROFIT'
+  | 'SALES'
+  | 'PURCHASE'
+  | 'MANPOWER'
+  | 'EXPENSES'
+  | 'PENDING'
+  | 'STOCK';
+
+export type AnalyticsMonthlyTrendItem = {
+  monthKey: string;
+  label: string;
+  fullLabel: string;
+  salesBilled: number;
+  salesReceived: number;
+  materialPurchase: number;
+  manpower: number;
+  generalAndTransport: number;
+  totalSpend: number;
+  profit: number;
+};
+
+export type BusinessAnalyticsData = {
+  hero: {
+    netProfit: number;
+    profitMarginPct: number;
+    salesBilled: number;
+    salesReceived: number;
+    totalSpend: number;
+    pendingDue: number;
+    collectionRatePct: number;
+  };
+  monthlyTrend: AnalyticsMonthlyTrendItem[];
+  expenseBreakdown: {
+    materialPurchase: number;
+    manpower: number;
+    generalAndTransport: number;
+    totalSpend: number;
+  };
+  cards: {
+    profit: {
+      income: number;
+      spend: number;
+      netProfit: number;
+      profitMarginPct: number;
+      monthsCount: number;
+    };
+    sales: {
+      billed: number;
+      received: number;
+      balanceDue: number;
+      invoiceCount: number;
+      collectionRatePct: number;
+    };
+    pending: {
+      totalDue: number;
+      partyCount: number;
+      oldestDueDays: number;
+    };
+    purchase: {
+      totalAmount: number;
+      materialCost: number;
+      extraCost: number;
+      billCount: number;
+      supplierCount: number;
+    };
+    manpower: {
+      totalAmount: number;
+      paidAmount: number;
+      pendingAmount: number;
+      workerCount: number;
+      entryCount: number;
+    };
+    generalExpenses: {
+      totalAmount: number;
+      transportAmount: number;
+      otherAmount: number;
+      entryCount: number;
+    };
+    stock: {
+      totalSkus: number;
+      lowStockCount: number;
+      outOfStockCount: number;
+      totalStockQty: number;
+      needProductionQty: number;
+    };
+  };
+};

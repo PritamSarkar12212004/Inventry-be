@@ -10,6 +10,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
+  BarChart3,
   Boxes,
   ChevronRight,
   FolderKanban,
@@ -216,6 +217,24 @@ export function DashboardScreen() {
             <Text style={styles.quickLabel}>Payment QR</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Owner Analytics & Excel Banner */}
+        <TouchableOpacity
+          style={styles.analyticsBanner}
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('Analytics')}
+        >
+          <View style={styles.analyticsIconBox}>
+            <BarChart3 size={19} color={colors.primary} />
+          </View>
+          <View style={styles.analyticsInfo}>
+            <Text style={styles.analyticsTitle}>Analytics & Excel Reports</Text>
+            <Text style={styles.analyticsSub}>
+              View profit, trends & download .xlsx reports
+            </Text>
+          </View>
+          <ChevronRight size={18} color={colors.primary} />
+        </TouchableOpacity>
 
         {/* Financial Pulse */}
         <View style={styles.card}>
@@ -879,5 +898,39 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     color: colors.textMuted,
     paddingVertical: spacing.sm,
+  },
+  analyticsBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+  },
+  analyticsIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  analyticsInfo: {
+    flex: 1,
+  },
+  analyticsTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  analyticsSub: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    marginTop: 1,
   },
 });

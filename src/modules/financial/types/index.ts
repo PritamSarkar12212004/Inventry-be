@@ -1,4 +1,7 @@
 export type {
+  AnalyticsExportType,
+  AnalyticsMonthlyTrendItem,
+  BusinessAnalyticsData,
   CreateExpenseCategoryPayload,
   CreateExpensePayload,
   CustomerOutstandingItem,

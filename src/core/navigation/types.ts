@@ -50,6 +50,7 @@ export type RootStackParamList = {
   Auth: undefined;
   Profile: undefined;
   EditProfile: undefined;
+  Analytics: undefined;
   Finance: undefined;
   GeneralExpenses: undefined;
   GeneralExpensesOverview: undefined;
