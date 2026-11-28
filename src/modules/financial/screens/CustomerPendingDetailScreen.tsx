@@ -31,13 +31,20 @@ import {
   Search,
   X,
 } from 'lucide-react-native';
+import type { AxiosError } from 'axios';
 import type { RootStackParamList } from '../../../core/navigation/types';
 import { IosLoader } from '../../../core/components/IosLoader';
 import { useDebounce } from '../../../core/hooks/useDebounce';
 import { popup } from '../../../core/store/popupStore';
-import { colors, fontSize, fontWeight, radius, spacing } from '../../../core/theme';
+import {
+  colors,
+  fontSize,
+  fontWeight,
+  radius,
+  shadows,
+  spacing,
+} from '../../../core/theme';
 import { inventoryStyles } from '../../inventory/styles';
-import type { AxiosError } from 'axios';
 import {
   useInfiniteSalesOrders,
   useSendCustomerPaymentReminder,
@@ -70,7 +77,7 @@ type ListRow =
   | { kind: 'ORDER'; key: string; order: SalesOrderRecord };
 
 function fmtMoney(val?: number): string {
-  return `₹${Number(val || 0).toLocaleString('en-IN')}`;
+  return `₹${Math.round(Number(val || 0)).toLocaleString('en-IN')}`;
 }
 
 function formatDate(dateStr?: string): string {
@@ -223,7 +230,7 @@ export function CustomerPendingDetailScreen({ route, navigation }: Props) {
             {isSendingReminder ? (
               <ActivityIndicator size="small" color={colors.primary} />
             ) : (
-              <Bell size={18} color={colors.primary} />
+              <Bell size={17} color={colors.primary} />
             )}
           </TouchableOpacity>
         ) : null}
@@ -279,70 +286,77 @@ export function CustomerPendingDetailScreen({ route, navigation }: Props) {
         customer.outstanding <= 0 && customer.pendingOrdersCount === 0;
       const isOverdue = !isSettled && customer.ageingDays >= 30;
       return (
-        <View style={styles.profileCard}>
-          <View style={styles.profileTop}>
-            <View style={styles.avatarLg}>
-              <Text style={styles.avatarLgText}>
-                {getInitials(customer.customerName)}
-              </Text>
-            </View>
-            <View style={styles.profileInfo}>
-              <View style={styles.nameRow}>
-                <Text style={styles.customerName} numberOfLines={2}>
-                  {customer.customerName}
+        <View style={styles.heroWrap}>
+          <View style={styles.profileCard}>
+            {/* Customer Identity Row */}
+            <View style={styles.profileTop}>
+              <View style={styles.avatarLg}>
+                <Text style={styles.avatarLgText}>
+                  {getInitials(customer.customerName)}
                 </Text>
-                <View
-                  style={[
-                    styles.agePill,
-                    isSettled
-                      ? styles.agePillSettled
-                      : isOverdue
-                        ? styles.agePillDanger
-                        : styles.agePillNeutral,
-                  ]}
-                >
-                  {isSettled ? (
-                    <Check size={12} color={colors.success} />
-                  ) : (
-                    <Clock
-                      size={12}
-                      color={isOverdue ? colors.danger : colors.textSecondary}
-                    />
-                  )}
-                  <Text
-                    style={[
-                      styles.agePillText,
-                      isSettled
-                        ? styles.ageTextSettled
-                        : isOverdue
-                          ? styles.ageTextDanger
-                          : styles.ageTextNeutral,
-                    ]}
-                  >
-                    {isSettled
-                      ? 'Settled'
-                      : customer.ageingDays === 0
-                        ? 'Today'
-                        : `${customer.ageingDays}d pending`}
-                  </Text>
-                </View>
               </View>
 
-              <View style={styles.contactChipsRow}>
-                {customer.phone ? (
-                  <TouchableOpacity
-                    style={styles.phoneChip}
-                    onPress={() => Linking.openURL(`tel:${customer.phone}`)}
-                    activeOpacity={0.75}
+              <View style={styles.profileInfo}>
+                <Text style={styles.customerName} numberOfLines={1}>
+                  {customer.customerName}
+                </Text>
+
+                <View style={styles.metaRow}>
+                  {customer.phone ? (
+                    <TouchableOpacity
+                      style={styles.phoneChip}
+                      onPress={() => Linking.openURL(`tel:${customer.phone}`)}
+                      activeOpacity={0.75}
+                    >
+                      <Phone size={12} color={colors.primary} />
+                      <Text style={styles.phoneChipText}>{customer.phone}</Text>
+                    </TouchableOpacity>
+                  ) : null}
+
+                  <View
+                    style={[
+                      styles.agePill,
+                      isSettled
+                        ? styles.agePillSettled
+                        : isOverdue
+                          ? styles.agePillDanger
+                          : styles.agePillWarning,
+                    ]}
                   >
-                    <Phone size={13} color={colors.primary} />
-                    <Text style={styles.phoneChipText}>{customer.phone}</Text>
-                  </TouchableOpacity>
-                ) : null}
+                    <View
+                      style={[
+                        styles.statusDot,
+                        {
+                          backgroundColor: isSettled
+                            ? colors.success
+                            : isOverdue
+                              ? colors.danger
+                              : colors.warning,
+                        },
+                      ]}
+                    />
+                    <Text
+                      style={[
+                        styles.agePillText,
+                        isSettled
+                          ? styles.ageTextSettled
+                          : isOverdue
+                            ? styles.ageTextDanger
+                            : styles.ageTextWarning,
+                      ]}
+                    >
+                      {isSettled
+                        ? 'Settled'
+                        : customer.ageingDays === 0
+                          ? 'Due Today'
+                          : `${customer.ageingDays}d Pending`}
+                    </Text>
+                  </View>
+                </View>
 
                 {customer.billingAddress ? (
                   <View style={styles.addressRow}>
-                    <MapPin size={13} color={colors.textMuted} />
+                    <MapPin size={12} color={colors.textMuted} />
                     <Text style={styles.addressText} numberOfLines={1}>
                       {customer.billingAddress}
                     </Text>
@@ -350,47 +364,61 @@ export function CustomerPendingDetailScreen({ route, navigation }: Props) {
                 ) : null}
               </View>
             </View>
-          </View>
 
-          <View style={styles.progressSection}>
-            <View style={styles.progressLabelRow}>
-              <Text style={styles.progressLabel}>Collection Progress</Text>
-              <Text style={styles.progressPct}>{overallPaidPct}% Paid</Text>
+            {/* Primary Balance Highlight */}
+            <View style={styles.balanceBanner}>
+              <View>
+                <Text style={styles.balanceEyebrow}>TOTAL BALANCE DUE</Text>
+                <Text
+                  style={[
+                    styles.balanceHeroAmt,
+                    isSettled ? styles.greenText : styles.dangerText,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {fmtMoney(customer.outstanding)}
+                </Text>
+              </View>
+              <View style={styles.pendingCountPill}>
+                <Clock size={12} color={colors.primary} />
+                <Text style={styles.pendingCountText}>
+                  {customer.pendingOrdersCount}{' '}
+                  {customer.pendingOrdersCount === 1 ? 'Invoice' : 'Invoices'}
+                </Text>
+              </View>
             </View>
-            <View style={styles.progressTrack}>
-              <View
-                style={[styles.progressFill, { width: `${overallPaidPct}%` }]}
-              />
-            </View>
-          </View>
 
-          <View style={styles.summaryRow}>
-            <View style={styles.summaryCell}>
-              <Text style={styles.summaryLabel}>Pending</Text>
-              <Text style={styles.summaryVal}>
-                {customer.pendingOrdersCount}
-              </Text>
+            {/* Collection Progress */}
+            <View style={styles.progressSection}>
+              <View style={styles.progressLabelRow}>
+                <Text style={styles.progressLabel}>Collection Progress</Text>
+                <Text style={styles.progressPct}>{overallPaidPct}% Paid</Text>
+              </View>
+              <View style={styles.progressTrack}>
+                <View
+                  style={[styles.progressFill, { width: `${overallPaidPct}%` }]}
+                />
+              </View>
             </View>
-            <View style={styles.summaryDivider} />
-            <View style={styles.summaryCell}>
-              <Text style={styles.summaryLabel}>Billed</Text>
-              <Text style={styles.summaryVal}>
-                {fmtMoney(customer.totalBilled)}
-              </Text>
-            </View>
-            <View style={styles.summaryDivider} />
-            <View style={styles.summaryCell}>
-              <Text style={styles.summaryLabel}>Paid</Text>
-              <Text style={[styles.summaryVal, styles.greenText]}>
-                {fmtMoney(customer.totalPaid)}
-              </Text>
-            </View>
-            <View style={styles.summaryDivider} />
-            <View style={styles.summaryCell}>
-              <Text style={styles.summaryLabel}>Balance</Text>
-              <Text style={[styles.summaryVal, styles.dangerText]}>
-                {fmtMoney(customer.outstanding)}
-              </Text>
+
+            {/* Spacious 2-Column Billed vs Paid */}
+            <View style={styles.twoColStrip}>
+              <View style={styles.twoColCell}>
+                <Text style={styles.twoColLabel}>Total Billed</Text>
+                <Text style={styles.twoColVal} numberOfLines={1}>
+                  {fmtMoney(customer.totalBilled)}
+                </Text>
+              </View>
+              <View style={styles.twoColDivider} />
+              <View style={styles.twoColCell}>
+                <Text style={styles.twoColLabel}>Total Paid</Text>
+                <Text
+                  style={[styles.twoColVal, styles.greenText]}
+                  numberOfLines={1}
+                >
+                  {fmtMoney(customer.totalPaid)}
+                </Text>
+              </View>
             </View>
           </View>
         </View>
@@ -402,7 +430,7 @@ export function CustomerPendingDetailScreen({ route, navigation }: Props) {
         <View style={styles.stickySearchWrap}>
           <View style={inventoryStyles.searchRow}>
             <View style={styles.searchBox}>
-              <Search size={18} color={colors.textMuted} />
+              <Search size={17} color={colors.textMuted} />
               <TextInput
                 style={inventoryStyles.searchInput}
                 placeholder="Search pending invoice #..."
@@ -427,7 +455,7 @@ export function CustomerPendingDetailScreen({ route, navigation }: Props) {
                 activeOpacity={0.8}
               >
                 <ArrowUpDown
-                  size={18}
+                  size={17}
                   color={
                     sortBy !== 'DATE_DESC'
                       ? colors.primary
@@ -458,10 +486,12 @@ export function CustomerPendingDetailScreen({ route, navigation }: Props) {
     if (item.kind === 'SECTION') {
       return (
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Pending Invoices</Text>
-          <Text style={styles.sectionCount}>
-            {orders.length} {orders.length === 1 ? 'invoice' : 'invoices'}
-          </Text>
+          <Text style={styles.sectionTitle}>PENDING INVOICES</Text>
+          <View style={styles.sectionBadge}>
+            <Text style={styles.sectionCount}>
+              {orders.length} {orders.length === 1 ? 'invoice' : 'invoices'}
+            </Text>
+          </View>
         </View>
       );
     }
@@ -471,12 +501,14 @@ export function CustomerPendingDetailScreen({ route, navigation }: Props) {
         <PendingInvoicesSkeleton />
       ) : (
         <View style={styles.emptyBox}>
-          <FileText size={30} color={colors.textMuted} />
-          <Text style={styles.emptyTitle}>No pending invoices found</Text>
+          <View style={styles.emptyIconBox}>
+            <FileText size={26} color={colors.primary} />
+          </View>
+          <Text style={styles.emptyTitle}>No pending invoices</Text>
           <Text style={styles.emptySub}>
             {debouncedSearch
               ? 'Try clearing your search filter.'
-              : 'All invoices for this customer are paid.'}
+              : `No unpaid invoices for ${periodLabel}.`}
           </Text>
         </View>
       );
@@ -488,9 +520,10 @@ export function CustomerPendingDetailScreen({ route, navigation }: Props) {
     const due = Math.max(0, grandTotal - paid);
     const paidPct =
       grandTotal > 0 ? Math.min(100, Math.round((paid / grandTotal) * 100)) : 0;
-    const isUnpaid = order.paymentStatus === 'UNPAID';
-    const visibleItems = order.items.slice(0, 3);
-    const extraCount = Math.max(0, order.items.length - 3);
+    const isUnpaid = order.paymentStatus === 'UNPAID' || paidPct === 0;
+    const hasGst = order.includeGst !== false && Number(order.tax || 0) > 0;
+    const visibleItems = order.items.slice(0, 2);
+    const extraCount = Math.max(0, order.items.length - 2);
 
     return (
       <TouchableOpacity
@@ -500,76 +533,94 @@ export function CustomerPendingDetailScreen({ route, navigation }: Props) {
           navigation.navigate('SalesOrderDetail', { orderId: order._id })
         }
       >
-        <View style={styles.invoiceTopRow}>
-          <View style={styles.invoiceNumWrap}>
-            <Text style={styles.invoiceNum}>{order.orderNumber}</Text>
+        <View
+          style={[
+            styles.invoiceAccentBar,
+            { backgroundColor: isUnpaid ? colors.danger : colors.warning },
+          ]}
+        />
+        <View style={styles.invoiceInner}>
+          {/* Row 1: Order Number + Date (Never Collides) */}
+          <View style={styles.invoiceTopRow}>
+            <View style={styles.invoiceNumRow}>
+              <FileText size={14} color={colors.primary} />
+              <Text style={styles.invoiceNum}>{order.orderNumber}</Text>
+            </View>
+            <Text style={styles.dateText}>{formatDate(order.orderDate)}</Text>
+          </View>
+
+          {/* Row 2: Distinct Semantic Status Badges */}
+          <View style={styles.badgesRow}>
             <View
               style={[
                 styles.statusBadge,
                 isUnpaid ? styles.unpaidBadge : styles.partialBadge,
               ]}
             >
+              <View
+                style={[
+                  styles.statusDot,
+                  {
+                    backgroundColor: isUnpaid ? colors.danger : colors.warning,
+                  },
+                ]}
+              />
               <Text
                 style={[
                   styles.statusText,
                   isUnpaid ? styles.unpaidText : styles.partialText,
                 ]}
               >
-                {isUnpaid ? 'UNPAID' : 'PARTIAL'}
+                {isUnpaid ? 'Unpaid' : `${paidPct}% Paid`}
               </Text>
             </View>
-            <View style={styles.gstBadge}>
-              <Text style={styles.gstText}>
-                {order.includeGst !== false ? 'GST' : 'No GST'}
+
+            <View style={[styles.gstBadge, hasGst && styles.gstBadgeActive]}>
+              <Text
+                style={[styles.gstText, hasGst && styles.gstTextActive]}
+              >
+                {hasGst ? 'GST' : 'No GST'}
               </Text>
             </View>
           </View>
 
-          <Text style={styles.dateText}>{formatDate(order.orderDate)}</Text>
-        </View>
-
-        <View style={styles.itemsPreview}>
-          {visibleItems.map((line, idx) => (
-            <View key={`${order._id}-item-${idx}`} style={styles.itemLine}>
-              <Text style={styles.itemName} numberOfLines={1}>
-                {line.productName} × {line.orderedQuantity} {line.unit || ''}
-              </Text>
-              <Text style={styles.itemAmt}>{fmtMoney(line.lineTotal)}</Text>
+          {/* Row 3: Clean Items Preview */}
+          {visibleItems.length > 0 ? (
+            <View style={styles.itemsPreview}>
+              {visibleItems.map((line, idx) => (
+                <View key={`${order._id}-item-${idx}`} style={styles.itemLine}>
+                  <Text style={styles.itemName} numberOfLines={1}>
+                    {line.productName} × {line.orderedQuantity}{' '}
+                    {line.unit || ''}
+                  </Text>
+                  <Text style={styles.itemAmt}>{fmtMoney(line.lineTotal)}</Text>
+                </View>
+              ))}
+              {extraCount > 0 ? (
+                <Text style={styles.moreItemsText}>
+                  +{extraCount} more {extraCount === 1 ? 'item' : 'items'}
+                </Text>
+              ) : null}
             </View>
-          ))}
-          {extraCount > 0 ? (
-            <Text style={styles.moreItemsText}>
-              +{extraCount} more {extraCount === 1 ? 'item' : 'items'}
-            </Text>
           ) : null}
-        </View>
 
-        <View style={styles.invoiceProgressTrack}>
-          <View
-            style={[styles.invoiceProgressFill, { width: `${paidPct}%` }]}
-          />
-        </View>
-
-        <View style={styles.amountsRow}>
-          <View style={styles.amountCol}>
-            <Text style={styles.amountLabel}>Invoice Total</Text>
-            <Text style={styles.amountVal}>{fmtMoney(grandTotal)}</Text>
-          </View>
-
-          <View style={styles.amountCol}>
-            <Text style={styles.amountLabel}>Paid ({paidPct}%)</Text>
-            <Text style={[styles.amountVal, styles.greenText]}>
-              {fmtMoney(paid)}
-            </Text>
-          </View>
-
-          <View style={styles.amountColRight}>
-            <Text style={styles.amountLabel}>Balance</Text>
-            <View style={styles.dueActionRow}>
-              <Text style={[styles.amountVal, styles.dangerText]}>
-                {fmtMoney(due)}
+          {/* Row 4: Clean Footer — Total/Paid left, Prominent Due right */}
+          <View style={styles.invoiceFooter}>
+            <View style={styles.footerMetaCol}>
+              <Text style={styles.footerMetaLine}>
+                Total <Text style={styles.footerMetaBold}>{fmtMoney(grandTotal)}</Text>
               </Text>
-              <ChevronRight size={15} color={colors.primary} />
+              <Text style={styles.footerMetaLine}>
+                Paid <Text style={styles.footerMetaPaid}>{fmtMoney(paid)}</Text>
+              </Text>
+            </View>
+
+            <View style={styles.dueRightBox}>
+              <Text style={styles.dueCaption}>Balance Due</Text>
+              <View style={styles.dueValueRow}>
+                <Text style={styles.dueBigAmt}>{fmtMoney(due)}</Text>
+                <ChevronRight size={16} color={colors.primary} />
+              </View>
             </View>
           </View>
         </View>
@@ -629,7 +680,10 @@ export function CustomerPendingDetailScreen({ route, navigation }: Props) {
               return (
                 <TouchableOpacity
                   key={opt.value}
-                  style={styles.sortMenuItem}
+                  style={[
+                    styles.sortMenuItem,
+                    selected && styles.sortMenuItemActive,
+                  ]}
                   onPress={() => {
                     setSortBy(opt.value);
                     setSortMenuOpen(false);
@@ -684,32 +738,44 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   headerAlertBtn: {
-    width: 36,
-    height: 36,
+    width: 34,
+    height: 34,
     borderRadius: radius.full,
     backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
     alignItems: 'center',
     justifyContent: 'center',
   },
   listContent: {
     paddingBottom: spacing.xxl,
   },
+  heroWrap: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
+  },
   profileCard: {
     backgroundColor: colors.surface,
-    padding: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md + 2,
+    gap: spacing.md,
+    ...shadows.card,
   },
   profileTop: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: spacing.md,
+    gap: spacing.sm + 4,
   },
   avatarLg: {
-    width: 50,
-    height: 50,
+    width: 46,
+    height: 46,
     borderRadius: radius.full,
     backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -720,136 +786,176 @@ const styles = StyleSheet.create({
   },
   profileInfo: {
     flex: 1,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
+    gap: 6,
   },
   customerName: {
-    fontSize: fontSize.lg,
+    fontSize: fontSize.md + 1,
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
-    flexShrink: 1,
   },
-  agePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-    borderRadius: radius.full,
-  },
-  agePillNeutral: {
-    backgroundColor: colors.surfacePressed,
-  },
-  agePillDanger: {
-    backgroundColor: colors.dangerBg,
-  },
-  agePillSettled: {
-    backgroundColor: colors.successBg,
-  },
-  agePillText: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-  },
-  ageTextNeutral: {
-    color: colors.textSecondary,
-  },
-  ageTextDanger: {
-    color: colors.danger,
-  },
-  ageTextSettled: {
-    color: colors.success,
-  },
-  contactChipsRow: {
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginTop: spacing.xs,
+    gap: 8,
   },
   phoneChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: colors.primarySoft,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
     borderRadius: radius.full,
+    backgroundColor: colors.primarySoft,
   },
   phoneChipText: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.semibold,
     color: colors.primary,
   },
+  agePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+    borderWidth: 1,
+  },
+  agePillSettled: {
+    backgroundColor: colors.successBg,
+    borderColor: colors.successBorder,
+  },
+  agePillWarning: {
+    backgroundColor: colors.warningBg,
+    borderColor: colors.warningBorder,
+  },
+  agePillDanger: {
+    backgroundColor: colors.dangerBg,
+    borderColor: colors.dangerBorder,
+  },
+  agePillText: {
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
+  },
+  ageTextSettled: {
+    color: colors.success,
+  },
+  ageTextWarning: {
+    color: colors.warning,
+  },
+  ageTextDanger: {
+    color: colors.danger,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
   addressRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    flex: 1,
   },
   addressText: {
-    fontSize: fontSize.xs,
-    color: colors.textSecondary,
     flex: 1,
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+  },
+  balanceBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surfaceSubtle,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 4,
+  },
+  balanceEyebrow: {
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+    color: colors.textMuted,
+    letterSpacing: 0.7,
+    marginBottom: 2,
+  },
+  balanceHeroAmt: {
+    fontSize: 24,
+    fontWeight: fontWeight.bold,
+    letterSpacing: -0.4,
+  },
+  pendingCountPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.full,
+  },
+  pendingCountText: {
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
   },
   progressSection: {
-    marginTop: spacing.md,
+    gap: 6,
   },
   progressLabelRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    alignItems: 'center',
   },
   progressLabel: {
     fontSize: fontSize.xs,
-    color: colors.textMuted,
+    color: colors.textSecondary,
+    fontWeight: fontWeight.medium,
   },
   progressPct: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-    color: colors.success,
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
   },
   progressTrack: {
     height: 6,
     borderRadius: radius.full,
-    backgroundColor: colors.surfacePressed,
+    backgroundColor: colors.primarySoft,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: colors.success,
     borderRadius: radius.full,
+    backgroundColor: colors.primary,
   },
-  summaryRow: {
+  twoColStrip: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: spacing.md,
-    paddingTop: spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: colors.borderSubtle,
+    paddingTop: spacing.sm + 2,
   },
-  summaryCell: {
+  twoColCell: {
     flex: 1,
     alignItems: 'center',
+    gap: 2,
   },
-  summaryDivider: {
+  twoColDivider: {
     width: 1,
     height: 28,
     backgroundColor: colors.border,
   },
-  summaryLabel: {
-    fontSize: fontSize.xs,
+  twoColLabel: {
+    fontSize: 11,
     color: colors.textMuted,
+    fontWeight: fontWeight.medium,
   },
-  summaryVal: {
-    fontSize: fontSize.sm,
+  twoColVal: {
+    fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
-    marginTop: 2,
   },
   greenText: {
     color: colors.success,
@@ -860,10 +966,8 @@ const styles = StyleSheet.create({
   stickySearchWrap: {
     backgroundColor: colors.background,
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.xs,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingTop: spacing.sm + 2,
+    paddingBottom: spacing.sm,
   },
   searchBox: {
     flex: 1,
@@ -873,13 +977,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingHorizontal: spacing.sm,
-    height: 42,
-    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    height: 44,
+    gap: spacing.sm,
   },
   sortBtn: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: radius.md,
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -896,58 +1000,90 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.xs,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.sm,
   },
   sectionTitle: {
-    fontSize: fontSize.md,
+    fontSize: 11,
     fontWeight: fontWeight.bold,
-    color: colors.textPrimary,
+    color: colors.textMuted,
+    letterSpacing: 0.8,
+  },
+  sectionBadge: {
+    backgroundColor: colors.surfacePressed,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: radius.full,
   },
   sectionCount: {
-    fontSize: fontSize.xs,
-    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: fontWeight.semibold,
+    color: colors.textSecondary,
   },
   invoiceCard: {
+    flexDirection: 'row',
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: spacing.md,
     marginHorizontal: spacing.md,
-    marginTop: spacing.sm,
+    marginBottom: spacing.sm + 4,
+    overflow: 'hidden',
+    ...shadows.card,
+  },
+  invoiceAccentBar: {
+    width: 4,
+  },
+  invoiceInner: {
+    flex: 1,
+    padding: spacing.md,
+    gap: spacing.sm + 2,
   },
   invoiceTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: spacing.xs,
+    gap: spacing.sm,
   },
-  invoiceNumWrap: {
+  invoiceNumRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    flexWrap: 'wrap',
     gap: 6,
-    flex: 1,
   },
   invoiceNum: {
-    fontSize: fontSize.md,
+    fontSize: fontSize.sm + 1,
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
   },
+  dateText: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    fontWeight: fontWeight.medium,
+  },
+  badgesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   statusBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
     borderRadius: radius.full,
+    borderWidth: 1,
   },
   unpaidBadge: {
     backgroundColor: colors.dangerBg,
+    borderColor: colors.dangerBorder,
   },
   partialBadge: {
     backgroundColor: colors.warningBg,
+    borderColor: colors.warningBorder,
   },
   statusText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: fontWeight.bold,
   },
   unpaidText: {
@@ -957,106 +1093,124 @@ const styles = StyleSheet.create({
     color: colors.warning,
   },
   gstBadge: {
-    backgroundColor: colors.surfacePressed,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: radius.full,
+    backgroundColor: colors.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  gstBadgeActive: {
+    backgroundColor: colors.primarySoft,
+    borderColor: '#BFDBFE',
   },
   gstText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: fontWeight.semibold,
     color: colors.textSecondary,
   },
-  dateText: {
-    fontSize: fontSize.xs,
-    color: colors.textMuted,
+  gstTextActive: {
+    color: colors.primary,
+    fontWeight: fontWeight.bold,
   },
   itemsPreview: {
-    marginTop: spacing.sm,
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    gap: 4,
+    backgroundColor: colors.surfaceSubtle,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.sm + 4,
+    paddingVertical: spacing.sm,
+    gap: 5,
   },
   itemLine: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
     gap: spacing.sm,
   },
   itemName: {
     flex: 1,
     fontSize: fontSize.xs,
     color: colors.textSecondary,
+    fontWeight: fontWeight.medium,
   },
   itemAmt: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
+    fontWeight: fontWeight.semibold,
     color: colors.textPrimary,
   },
   moreItemsText: {
-    fontSize: fontSize.xs,
+    fontSize: 11,
     color: colors.primary,
-    fontWeight: fontWeight.medium,
+    fontWeight: fontWeight.semibold,
     marginTop: 2,
   },
-  invoiceProgressTrack: {
-    height: 4,
-    borderRadius: radius.full,
-    backgroundColor: colors.surfacePressed,
-    overflow: 'hidden',
-    marginTop: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  invoiceProgressFill: {
-    height: '100%',
-    backgroundColor: colors.success,
-    borderRadius: radius.full,
-  },
-  amountsRow: {
+  invoiceFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+    paddingTop: spacing.sm + 2,
   },
-  amountCol: {
-    flex: 1,
+  footerMetaCol: {
+    gap: 3,
   },
-  amountColRight: {
-    flex: 1,
-    alignItems: 'flex-end',
-  },
-  amountLabel: {
+  footerMetaLine: {
     fontSize: fontSize.xs,
     color: colors.textMuted,
   },
-  amountVal: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
+  footerMetaBold: {
+    fontWeight: fontWeight.semibold,
     color: colors.textPrimary,
-    marginTop: 1,
   },
-  dueActionRow: {
+  footerMetaPaid: {
+    fontWeight: fontWeight.semibold,
+    color: colors.success,
+  },
+  dueRightBox: {
+    alignItems: 'flex-end',
+  },
+  dueCaption: {
+    fontSize: 10,
+    fontWeight: fontWeight.semibold,
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  dueValueRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
+    marginTop: 1,
+  },
+  dueBigAmt: {
+    fontSize: fontSize.md + 2,
+    fontWeight: fontWeight.bold,
+    color: colors.danger,
   },
   emptyBox: {
     alignItems: 'center',
     justifyContent: 'center',
+    marginHorizontal: spacing.md,
     paddingVertical: spacing.xxl,
     paddingHorizontal: spacing.lg,
-    marginHorizontal: spacing.md,
-    marginTop: spacing.sm,
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  emptyIconBox: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.full,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
   },
   emptyTitle: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
-    marginTop: spacing.sm,
   },
   emptySub: {
     fontSize: fontSize.xs,
@@ -1070,24 +1224,28 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: 'rgba(15, 23, 42, 0.28)',
   },
   sortMenu: {
     position: 'absolute',
     right: spacing.md,
-    width: 210,
+    width: 220,
     backgroundColor: colors.surface,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingVertical: spacing.xs,
+    paddingVertical: 4,
+    ...shadows.floating,
   },
   sortMenuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: 11,
+  },
+  sortMenuItemActive: {
+    backgroundColor: colors.primarySoft,
   },
   sortMenuText: {
     fontSize: fontSize.sm,
@@ -1095,6 +1253,6 @@ const styles = StyleSheet.create({
   },
   sortMenuTextSelected: {
     color: colors.primary,
-    fontWeight: fontWeight.semibold,
+    fontWeight: fontWeight.bold,
   },
 });
