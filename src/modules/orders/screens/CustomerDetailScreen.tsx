@@ -295,7 +295,7 @@ export function CustomerDetailScreen({ route, navigation }: Props) {
             setDateModalOpen(true);
           }}
         >
-          <Calendar size={16} color={colors.textPrimary} />
+          <Calendar size={16} color={colors.primary} />
           <Text style={styles.headerCalText}>{periodLabel}</Text>
         </TouchableOpacity>
         {hasPendingOrders ? (
@@ -498,10 +498,48 @@ export function CustomerDetailScreen({ route, navigation }: Props) {
     const hasGst = Boolean(order.includeGst && Number(order.tax || 0) > 0);
     const grandTotal = Number(order.grandTotal || 0);
     const paidAmount = Number(order.advancePaid || 0);
+    const dueAmount = Math.max(0, grandTotal - paidAmount);
+    const isCancelled = order.fulfillmentStatus === 'CANCELLED';
     const paidPercent =
       grandTotal > 0
         ? Math.min(100, Math.round((paidAmount / grandTotal) * 100))
         : 0;
+
+    const statusBadge = isCancelled
+      ? {
+          label: 'Cancelled',
+          bg: colors.surfacePressed,
+          border: colors.border,
+          text: colors.textMuted,
+          dot: colors.textMuted,
+          accent: colors.border,
+        }
+      : paidPercent >= 100
+        ? {
+            label: 'Paid',
+            bg: colors.successBg,
+            border: colors.successBorder,
+            text: colors.success,
+            dot: colors.success,
+            accent: colors.success,
+          }
+        : paidPercent > 0
+          ? {
+              label: `${paidPercent}% Paid`,
+              bg: colors.warningBg,
+              border: colors.warningBorder,
+              text: colors.warning,
+              dot: colors.warning,
+              accent: colors.warning,
+            }
+          : {
+              label: 'Unpaid',
+              bg: colors.dangerBg,
+              border: colors.dangerBorder,
+              text: colors.danger,
+              dot: colors.danger,
+              accent: colors.danger,
+            };
 
     return (
       <TouchableOpacity
@@ -511,35 +549,81 @@ export function CustomerDetailScreen({ route, navigation }: Props) {
           navigation.navigate('SalesOrderDetail', { orderId: order._id })
         }
       >
-        <View style={styles.cardTopRow}>
-          <View style={styles.orderNumWrap}>
-            <FileText size={15} color={colors.primary} />
-            <Text style={styles.orderNumber}>{order.orderNumber}</Text>
-          </View>
-          <View style={styles.badgesRow}>
-            <View style={styles.neutralBadge}>
-              <Text style={styles.neutralBadgeText}>{paidPercent}% Paid</Text>
+        <View
+          style={[
+            styles.orderAccentBar,
+            { backgroundColor: statusBadge.accent },
+          ]}
+        />
+        <View style={styles.orderCardInner}>
+          <View style={styles.cardTopRow}>
+            <View style={styles.orderNumWrap}>
+              <FileText size={14} color={colors.primary} />
+              <Text style={styles.orderNumber}>{order.orderNumber}</Text>
             </View>
-            <View style={styles.neutralBadge}>
-              <Text style={styles.neutralBadgeText}>
-                {hasGst ? 'GST' : 'No GST'}
+            <View style={styles.badgesRow}>
+              <View
+                style={[
+                  styles.statusBadge,
+                  {
+                    backgroundColor: statusBadge.bg,
+                    borderColor: statusBadge.border,
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.statusDot,
+                    { backgroundColor: statusBadge.dot },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.statusBadgeText,
+                    { color: statusBadge.text },
+                  ]}
+                >
+                  {statusBadge.label}
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.neutralBadge,
+                  hasGst && styles.gstActiveBadge,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.neutralBadgeText,
+                    hasGst && styles.gstActiveBadgeText,
+                  ]}
+                >
+                  {hasGst ? 'GST' : 'No GST'}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <Text style={styles.dateMeta}>{formatDate(order.orderDate)}</Text>
+
+          <View style={styles.bottomRow}>
+            <View style={styles.bottomLeftRow}>
+              <Text style={styles.itemCount}>
+                {order.items?.length ?? 0}{' '}
+                {(order.items?.length ?? 0) === 1 ? 'item' : 'items'}
               </Text>
+              {!isCancelled && dueAmount > 0 ? (
+                <Text style={styles.dueTag}>
+                  Due ₹{Math.round(dueAmount).toLocaleString('en-IN')}
+                </Text>
+              ) : null}
             </View>
-          </View>
-        </View>
-
-        <Text style={styles.dateMeta}>{formatDate(order.orderDate)}</Text>
-
-        <View style={styles.bottomRow}>
-          <Text style={styles.itemCount}>
-            {order.items?.length ?? 0}{' '}
-            {(order.items?.length ?? 0) === 1 ? 'item' : 'items'}
-          </Text>
-          <View style={styles.amountRight}>
-            <Text style={styles.grandTotal}>
-              ₹{grandTotal.toLocaleString('en-IN')}
-            </Text>
-            <ChevronRight size={16} color={colors.textMuted} />
+            <View style={styles.amountRight}>
+              <Text style={styles.grandTotal}>
+                ₹{Math.round(grandTotal).toLocaleString('en-IN')}
+              </Text>
+              <ChevronRight size={16} color={colors.textMuted} />
+            </View>
           </View>
         </View>
       </TouchableOpacity>
@@ -636,7 +720,17 @@ export function CustomerDetailScreen({ route, navigation }: Props) {
           />
           <View style={styles.filterModalCard}>
             <View style={styles.filterModalHeader}>
-              <Text style={styles.filterModalTitle}>Select Month</Text>
+              <View style={styles.modalHeaderLeft}>
+                <View style={styles.modalHeaderIcon}>
+                  <Calendar size={17} color={colors.primary} />
+                </View>
+                <View>
+                  <Text style={styles.filterModalTitle}>Select Period</Text>
+                  <Text style={styles.filterModalSub}>
+                    Monthly balance due overview
+                  </Text>
+                </View>
+              </View>
               <TouchableOpacity
                 onPress={() => setDateModalOpen(false)}
                 hitSlop={8}
@@ -656,11 +750,19 @@ export function CustomerDetailScreen({ route, navigation }: Props) {
               </TouchableOpacity>
               <View style={styles.yearCenterWrap}>
                 <Text style={styles.yearText}>{pickerYear}</Text>
-                {yearTotalDue > 0 ? (
-                  <Text style={styles.yearDueSub}>
-                    Due {fmtMoney(yearTotalDue)}
-                  </Text>
-                ) : null}
+                <Text
+                  style={[
+                    styles.yearDueSub,
+                    yearTotalDue <= 0 && styles.yearDueSubClear,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {yearOrdersLoading
+                    ? 'Loading...'
+                    : yearTotalDue > 0
+                      ? `Due ${fmtMoney(yearTotalDue)}`
+                      : 'No Due'}
+                </Text>
               </View>
               {pickerYear < now.getFullYear() ? (
                 <TouchableOpacity
@@ -982,13 +1084,62 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   orderCard: {
+    flexDirection: 'row',
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: spacing.md,
     marginHorizontal: spacing.md,
     marginBottom: spacing.sm,
+    overflow: 'hidden',
+    ...shadows.card,
+  },
+  orderAccentBar: {
+    width: 3.5,
+  },
+  orderCardInner: {
+    flex: 1,
+    padding: spacing.md,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+    borderWidth: 1,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
+  },
+  gstActiveBadge: {
+    backgroundColor: colors.primarySoft,
+    borderColor: '#BFDBFE',
+  },
+  gstActiveBadgeText: {
+    color: colors.primary,
+  },
+  bottomLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dueTag: {
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
+    color: colors.danger,
+    backgroundColor: colors.dangerBg,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+    overflow: 'hidden',
   },
   cardTopRow: {
     flexDirection: 'row',
@@ -1076,14 +1227,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: radius.full,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.primarySoft,
     borderWidth: 1.5,
-    borderColor: colors.textPrimary,
+    borderColor: colors.primary,
   },
   headerCalText: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
-    color: colors.textPrimary,
+    color: colors.primary,
   },
   filterModalBackdrop: {
     flex: 1,
@@ -1106,12 +1257,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  modalHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm + 2,
+  },
+  modalHeaderIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.md,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   filterModalTitle: {
-    fontSize: fontSize.lg,
+    fontSize: fontSize.md + 1,
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
+  },
+  filterModalSub: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: 1,
   },
   closeBtn: {
     width: 32,
@@ -1149,17 +1318,25 @@ const styles = StyleSheet.create({
   },
   yearCenterWrap: {
     alignItems: 'center',
+    justifyContent: 'center',
+    height: 38,
   },
   yearText: {
-    fontSize: fontSize.lg,
+    fontSize: fontSize.md + 1,
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
+    lineHeight: 20,
   },
   yearDueSub: {
     fontSize: 11,
     fontWeight: fontWeight.bold,
     color: colors.danger,
+    lineHeight: 15,
     marginTop: 1,
+  },
+  yearDueSubClear: {
+    color: colors.success,
+    fontWeight: fontWeight.semibold,
   },
   monthGrid: {
     flexDirection: 'row',

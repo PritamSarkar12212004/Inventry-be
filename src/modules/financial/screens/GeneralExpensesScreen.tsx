@@ -138,7 +138,7 @@ export function GeneralExpensesScreen() {
             setFilterModalOpen(true);
           }}
         >
-          <Calendar size={17} color={colors.textPrimary} />
+          <Calendar size={17} color={colors.primary} />
           <Text style={styles.headerCalText}>{periodLabel}</Text>
         </TouchableOpacity>
       ),
@@ -988,14 +988,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: radius.full,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.primarySoft,
     borderWidth: 1.5,
-    borderColor: colors.textPrimary,
+    borderColor: colors.primary,
   },
   headerCalText: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
-    color: colors.textPrimary,
+    color: colors.primary,
   },
   filterModalBackdrop: {
     flex: 1,

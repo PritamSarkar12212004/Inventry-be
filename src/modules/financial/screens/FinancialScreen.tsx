@@ -100,11 +100,38 @@ const TX_FILTER_CHIPS: Array<{
   { key: 'MANPOWER', label: 'Manpower' },
 ];
 
-const TX_TYPE_LABELS: Record<FinancialTransactionItem['type'], string> = {
-  SALES_PAYMENT: 'Sales Order',
-  PURCHASE: 'Supplier',
-  GENERAL_EXPENSE: 'General Expense',
-  MANPOWER: 'Manpower',
+const TX_TYPE_META: Record<
+  FinancialTransactionItem['type'],
+  { label: string; bg: string; border: string; color: string; dot: string }
+> = {
+  SALES_PAYMENT: {
+    label: 'Sales Order',
+    bg: colors.successBg,
+    border: colors.successBorder,
+    color: colors.success,
+    dot: colors.success,
+  },
+  PURCHASE: {
+    label: 'Supplier',
+    bg: colors.primarySoft,
+    border: '#BFDBFE',
+    color: colors.primary,
+    dot: colors.primary,
+  },
+  GENERAL_EXPENSE: {
+    label: 'General Expense',
+    bg: colors.warningBg,
+    border: colors.warningBorder,
+    color: colors.warning,
+    dot: colors.warning,
+  },
+  MANPOWER: {
+    label: 'Manpower',
+    bg: '#F5F3FF',
+    border: '#DDD6FE',
+    color: '#6D28D9',
+    dot: '#7C3AED',
+  },
 };
 
 function fmtMoney(val?: number): string {
@@ -180,7 +207,7 @@ export function FinancialScreen() {
           activeOpacity={0.75}
           onPress={() => setFilterModalOpen(true)}
         >
-          <Calendar size={15} color={colors.textPrimary} />
+          <Calendar size={15} color={colors.primary} />
           <Text style={styles.headerCalText}>{periodLabel}</Text>
         </TouchableOpacity>
       ),
@@ -582,6 +609,7 @@ export function FinancialScreen() {
     item: FinancialTransactionItem;
   }) => {
     const isIn = item.direction === 'IN';
+    const meta = TX_TYPE_META[item.type];
     const canOpenOrder = item.type === 'SALES_PAYMENT' && Boolean(item.orderId);
 
     return (
@@ -595,11 +623,16 @@ export function FinancialScreen() {
           }
         }}
       >
-        <View style={styles.txIconBox}>
+        <View
+          style={[
+            styles.txIconBox,
+            isIn ? styles.txIconIn : styles.txIconOut,
+          ]}
+        >
           {isIn ? (
             <ArrowDownLeft size={16} color={colors.success} />
           ) : (
-            <ArrowUpRight size={16} color={colors.textSecondary} />
+            <ArrowUpRight size={16} color={colors.danger} />
           )}
         </View>
 
@@ -623,9 +656,15 @@ export function FinancialScreen() {
           </Text>
 
           <View style={styles.txBottomRow}>
-            <View style={styles.txMetaPills}>
-              <Text style={styles.txNeutralPill}>
-                {TX_TYPE_LABELS[item.type]}
+            <View
+              style={[
+                styles.txTypePill,
+                { backgroundColor: meta.bg, borderColor: meta.border },
+              ]}
+            >
+              <View style={[styles.txTypeDot, { backgroundColor: meta.dot }]} />
+              <Text style={[styles.txTypePillText, { color: meta.color }]}>
+                {meta.label}
               </Text>
             </View>
             <Text style={styles.txDate}>{formatDate(item.date)}</Text>
@@ -1038,18 +1077,18 @@ const styles = StyleSheet.create({
   headerCalBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: 5,
+    gap: 6,
+    paddingHorizontal: spacing.sm + 4,
+    paddingVertical: 6,
     borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
   },
   headerCalText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-    color: colors.textPrimary,
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
   },
   tabBar: {
     flexDirection: 'row',
@@ -1354,13 +1393,36 @@ const styles = StyleSheet.create({
     gap: spacing.sm + 4,
   },
   txIconBox: {
-    width: 36,
-    height: 36,
+    width: 38,
+    height: 38,
     borderRadius: radius.full,
-    backgroundColor: colors.surfacePressed,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 1,
+  },
+  txIconIn: {
+    backgroundColor: colors.successBg,
+  },
+  txIconOut: {
+    backgroundColor: colors.dangerBg,
+  },
+  txTypePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+    borderWidth: 1,
+  },
+  txTypeDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+  },
+  txTypePillText: {
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
   },
   txBody: {
     flex: 1,

@@ -165,7 +165,7 @@ export function SuppliersPurchasesScreen() {
           activeOpacity={0.75}
           onPress={() => setFilterModalOpen(true)}
         >
-          <Calendar size={16} color={colors.textPrimary} />
+          <Calendar size={16} color={colors.primary} />
           <Text style={styles.dateSelectorText} numberOfLines={1}>
             {periodLabel}
           </Text>
@@ -481,14 +481,14 @@ const styles = StyleSheet.create({
     height: 44,
     paddingHorizontal: spacing.sm + 2,
     borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
   },
   dateSelectorText: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
-    color: colors.textPrimary,
+    color: colors.primary,
   },
   searchInput: {
     flex: 1,

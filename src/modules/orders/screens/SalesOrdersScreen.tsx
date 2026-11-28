@@ -171,11 +171,48 @@ export function SalesOrdersScreen() {
     const hasGst = Boolean(item.includeGst && Number(item.tax || 0) > 0);
     const grandTotal = Number(item.grandTotal || 0);
     const paidAmount = Number(item.advancePaid || 0);
+    const dueAmount = Math.max(0, grandTotal - paidAmount);
+    const isCancelled = item.fulfillmentStatus === 'CANCELLED';
     const paidPercent =
       grandTotal > 0
         ? Math.min(100, Math.round((paidAmount / grandTotal) * 100))
         : 0;
-    const paidLabel = `${paidPercent}% Paid`;
+
+    const statusBadge = isCancelled
+      ? {
+          label: 'Cancelled',
+          bg: colors.surfacePressed,
+          border: colors.border,
+          text: colors.textMuted,
+          dot: colors.textMuted,
+          accent: colors.border,
+        }
+      : paidPercent >= 100
+        ? {
+            label: 'Paid',
+            bg: colors.successBg,
+            border: colors.successBorder,
+            text: colors.success,
+            dot: colors.success,
+            accent: colors.success,
+          }
+        : paidPercent > 0
+          ? {
+              label: `${paidPercent}% Paid`,
+              bg: colors.warningBg,
+              border: colors.warningBorder,
+              text: colors.warning,
+              dot: colors.warning,
+              accent: colors.warning,
+            }
+          : {
+              label: 'Unpaid',
+              bg: colors.dangerBg,
+              border: colors.dangerBorder,
+              text: colors.danger,
+              dot: colors.danger,
+              accent: colors.danger,
+            };
 
     return (
       <TouchableOpacity
@@ -185,41 +222,85 @@ export function SalesOrdersScreen() {
           navigation.navigate('SalesOrderDetail', { orderId: item._id })
         }
       >
-        <View style={styles.cardTopRow}>
-          <View style={styles.orderNumWrap}>
-            <FileText size={15} color={colors.primary} />
-            <Text style={styles.orderNumber}>{item.orderNumber}</Text>
-          </View>
-          <View style={styles.badgesRow}>
-            <View style={[styles.gstBadge, styles.gstOff]}>
-              <Text style={[styles.gstBadgeText, styles.gstOffText]}>
-                {paidLabel}
-              </Text>
+        <View
+          style={[
+            styles.cardAccentBar,
+            { backgroundColor: statusBadge.accent },
+          ]}
+        />
+        <View style={styles.cardInner}>
+          <View style={styles.cardTopRow}>
+            <View style={styles.orderNumWrap}>
+              <FileText size={14} color={colors.primary} />
+              <Text style={styles.orderNumber}>{item.orderNumber}</Text>
             </View>
-            <View style={[styles.gstBadge, styles.gstOff]}>
-              <Text style={[styles.gstBadgeText, styles.gstOffText]}>
-                {hasGst ? 'GST' : 'No GST'}
-              </Text>
+            <View style={styles.badgesRow}>
+              <View
+                style={[
+                  styles.statusBadge,
+                  {
+                    backgroundColor: statusBadge.bg,
+                    borderColor: statusBadge.border,
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.statusDot,
+                    { backgroundColor: statusBadge.dot },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.statusBadgeText,
+                    { color: statusBadge.text },
+                  ]}
+                >
+                  {statusBadge.label}
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.gstBadge,
+                  hasGst ? styles.gstOn : styles.gstOff,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.gstBadgeText,
+                    hasGst ? styles.gstOnText : styles.gstOffText,
+                  ]}
+                >
+                  {hasGst ? 'GST' : 'No GST'}
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        <Text style={styles.customerName} numberOfLines={1}>
-          {item.customerSnapshot?.name || 'Walk-In Customer'}
-        </Text>
-        <Text style={styles.customerMeta} numberOfLines={1}>
-          {item.customerSnapshot?.phone || 'No phone'} •{' '}
-          {formatDate(item.orderDate)}
-        </Text>
+          <Text style={styles.customerName} numberOfLines={1}>
+            {item.customerSnapshot?.name || 'Walk-In Customer'}
+          </Text>
+          <Text style={styles.customerMeta} numberOfLines={1}>
+            {item.customerSnapshot?.phone || 'No phone'} •{' '}
+            {formatDate(item.orderDate)}
+          </Text>
 
-        <View style={styles.bottomRow}>
-          <Text style={styles.itemCount}>
-            {item.items?.length ?? 0}{' '}
-            {(item.items?.length ?? 0) === 1 ? 'item' : 'items'}
-          </Text>
-          <Text style={styles.grandTotal}>
-            ₹{Number(item.grandTotal || 0).toLocaleString('en-IN')}
-          </Text>
+          <View style={styles.bottomRow}>
+            <View style={styles.bottomLeftRow}>
+              <Text style={styles.itemCount}>
+                {item.items?.length ?? 0}{' '}
+                {(item.items?.length ?? 0) === 1 ? 'item' : 'items'}
+              </Text>
+              {!isCancelled && dueAmount > 0 ? (
+                <Text style={styles.dueTag}>
+                  Due ₹{Math.round(dueAmount).toLocaleString('en-IN')}
+                </Text>
+              ) : null}
+            </View>
+            <Text style={styles.grandTotal}>
+              ₹{Math.round(grandTotal).toLocaleString('en-IN')}
+            </Text>
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -247,7 +328,7 @@ export function SalesOrdersScreen() {
             }}
             activeOpacity={0.8}
           >
-            <Calendar size={16} color={colors.textPrimary} />
+            <Calendar size={16} color={colors.primary} />
             <Text style={styles.datePickerText}>{periodLabel}</Text>
           </TouchableOpacity>
 
@@ -462,17 +543,26 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   card: {
+    flexDirection: 'row',
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
+    overflow: 'hidden',
+    ...shadows.card,
+  },
+  cardAccentBar: {
+    width: 3.5,
+  },
+  cardInner: {
+    flex: 1,
     padding: spacing.md,
   },
   cardTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   orderNumWrap: {
     flexDirection: 'row',
@@ -489,29 +579,62 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
   },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+    borderWidth: 1,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
+  },
   gstBadge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: radius.full,
     borderWidth: 1,
   },
   gstOn: {
-    backgroundColor: colors.successBg,
-    borderColor: colors.successBorder,
+    backgroundColor: colors.primarySoft,
+    borderColor: '#BFDBFE',
   },
   gstOff: {
     backgroundColor: colors.surfaceSubtle,
     borderColor: colors.border,
   },
   gstBadgeText: {
-    fontSize: fontSize.xs,
+    fontSize: 11,
     fontWeight: fontWeight.bold,
   },
   gstOnText: {
-    color: colors.success,
+    color: colors.primary,
   },
   gstOffText: {
     color: colors.textSecondary,
+  },
+  bottomLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dueTag: {
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
+    color: colors.danger,
+    backgroundColor: colors.dangerBg,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+    overflow: 'hidden',
   },
   customerName: {
     fontSize: fontSize.md,
@@ -549,14 +672,14 @@ const styles = StyleSheet.create({
     height: 44,
     paddingHorizontal: 10,
     borderRadius: radius.md,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.primarySoft,
     borderWidth: 1.5,
-    borderColor: colors.textPrimary,
+    borderColor: colors.primary,
   },
   datePickerText: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
-    color: colors.textPrimary,
+    color: colors.primary,
   },
   filterModalBackdrop: {
     flex: 1,

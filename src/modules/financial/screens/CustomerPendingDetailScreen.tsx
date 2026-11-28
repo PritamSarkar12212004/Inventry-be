@@ -210,7 +210,7 @@ export function CustomerPendingDetailScreen({ route, navigation }: Props) {
           activeOpacity={0.75}
           onPress={() => setFilterModalOpen(true)}
         >
-          <Calendar size={15} color={colors.textPrimary} />
+          <Calendar size={15} color={colors.primary} />
           <Text style={styles.headerCalText}>{periodLabel}</Text>
         </TouchableOpacity>
         {hasPending ? (
@@ -674,14 +674,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm + 2,
     paddingVertical: 5,
     borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
   },
   headerCalText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-    color: colors.textPrimary,
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
   },
   headerAlertBtn: {
     width: 36,

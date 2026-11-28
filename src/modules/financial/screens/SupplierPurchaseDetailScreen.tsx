@@ -103,7 +103,7 @@ export function SupplierPurchaseDetailScreen({ route, navigation }: Props) {
           activeOpacity={0.75}
           onPress={() => setFilterModalOpen(true)}
         >
-          <Calendar size={16} color={colors.textPrimary} />
+          <Calendar size={16} color={colors.primary} />
           <Text style={styles.headerCalText}>{periodLabel}</Text>
         </TouchableOpacity>
       ),
@@ -686,13 +686,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 5,
     borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.textPrimary,
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
   },
   headerCalText: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
-    color: colors.textPrimary,
+    color: colors.primary,
   },
 });
