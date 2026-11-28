@@ -203,7 +203,7 @@ export default function RootNavigator() {
             <RootStack.Screen
               name="CustomerPendingDetail"
               component={CustomerPendingDetailScreen}
-              options={{ title: 'Pending Invoices' }}
+              options={{ title: 'Pending' }}
             />
             <RootStack.Screen
               name="SupplierPurchaseDetail"
@@ -223,12 +223,12 @@ export default function RootNavigator() {
             <RootStack.Screen
               name="GeneralExpenses"
               component={GeneralExpensesScreen}
-              options={{ title: 'General Expenses' }}
+              options={{ title: 'Expenses' }}
             />
             <RootStack.Screen
               name="GeneralExpensesOverview"
               component={GeneralExpensesOverviewScreen}
-              options={{ title: 'Expenses Overview' }}
+              options={{ title: 'Overview' }}
             />
             <RootStack.Screen
               name="CategoryExpenses"
@@ -247,12 +247,12 @@ export default function RootNavigator() {
             <RootStack.Screen
               name="ExpensesOverviewDetail"
               component={ExpensesOverviewDetailScreen}
-              options={{ title: 'Expenses Overview' }}
+              options={{ title: 'Overview' }}
             />
             <RootStack.Screen
               name="ManpowerExpenses"
               component={ManpowerExpensesScreen}
-              options={{ title: 'Manpower Expenses' }}
+              options={{ title: 'Manpower' }}
             />
             <RootStack.Screen
               name="BusinessHub"

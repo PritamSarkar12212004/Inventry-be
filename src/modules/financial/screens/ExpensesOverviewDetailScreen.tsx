@@ -122,7 +122,7 @@ export function ExpensesOverviewDetailScreen({ route }: { route: RouteType }) {
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      title: 'Expenses Overview',
+      title: 'Overview',
       headerRight: () => (
         <TouchableOpacity
           style={styles.headerCalBtn}
