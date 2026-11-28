@@ -36,6 +36,11 @@ import {
   spacing,
 } from '../../../core/theme';
 import { inventoryStyles } from '../../inventory/styles';
+import {
+  MonthYearPickerModal,
+  getSelectedPeriodRange,
+  type SelectedMonth,
+} from '../../financial/components';
 import { useFinancialOverview } from '../../financial/hooks';
 import { SalesOverviewBanner } from '../components';
 import { useInfiniteSalesOrders } from '../hooks';
@@ -105,20 +110,14 @@ export function SalesOrdersScreen() {
   const debouncedSearch = useDebounce(search.trim(), 350);
 
   const now = useMemo(() => new Date(), []);
-  const [selectedMonth, setSelectedMonth] = useState<{
-    year: number;
-    month: number | null;
-  } | null>(() => ({ year: now.getFullYear(), month: null }));
-  const [pickerYear, setPickerYear] = useState<number>(() =>
-    now.getFullYear(),
-  );
+  const [selectedMonth, setSelectedMonth] = useState<SelectedMonth>(() => ({
+    year: now.getFullYear(),
+    month: null,
+  }));
   const [dateModalOpen, setDateModalOpen] = useState(false);
 
   const monthRange = useMemo(
-    () =>
-      selectedMonth
-        ? getMonthRange(selectedMonth.year, selectedMonth.month)
-        : null,
+    () => getSelectedPeriodRange(selectedMonth),
     [selectedMonth],
   );
   const periodLabel = monthRange?.label ?? 'All Time';
@@ -244,7 +243,6 @@ export function SalesOrdersScreen() {
           <TouchableOpacity
             style={styles.datePickerBtn}
             onPress={() => {
-              setPickerYear(selectedMonth?.year ?? now.getFullYear());
               setDateModalOpen(true);
             }}
             activeOpacity={0.8}
@@ -396,150 +394,12 @@ export function SalesOrdersScreen() {
         </TouchableOpacity>
       </Modal>
       {/* Month & Year Picker Modal */}
-      <Modal
+      <MonthYearPickerModal
         visible={dateModalOpen}
-        transparent
-        animationType="fade"
-        statusBarTranslucent
-        onRequestClose={() => setDateModalOpen(false)}
-      >
-        <View style={styles.filterModalBackdrop}>
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={() => setDateModalOpen(false)}
-          />
-          <View style={styles.filterModalCard}>
-            <View style={styles.filterModalHeader}>
-              <Text style={styles.filterModalTitle}>Select Month</Text>
-              <TouchableOpacity
-                onPress={() => setDateModalOpen(false)}
-                hitSlop={8}
-                style={styles.closeBtn}
-              >
-                <X size={18} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.yearSwitchRow}>
-              <TouchableOpacity
-                style={styles.yearArrowBtn}
-                onPress={() => setPickerYear((y) => y - 1)}
-                activeOpacity={0.75}
-              >
-                <ChevronLeft size={18} color={colors.textPrimary} />
-              </TouchableOpacity>
-              <Text style={styles.yearText}>{pickerYear}</Text>
-              {pickerYear < now.getFullYear() ? (
-                <TouchableOpacity
-                  style={styles.yearArrowBtn}
-                  onPress={() => setPickerYear((y) => y + 1)}
-                  activeOpacity={0.75}
-                >
-                  <ChevronRight size={18} color={colors.textPrimary} />
-                </TouchableOpacity>
-              ) : (
-                <View style={styles.yearArrowPlaceholder} />
-              )}
-            </View>
-
-            <View style={styles.monthGrid}>
-              {MONTH_NAMES.map((mName, idx) => {
-                const monthNum = idx + 1;
-                if (
-                  pickerYear > now.getFullYear() ||
-                  (pickerYear === now.getFullYear() &&
-                    monthNum > now.getMonth() + 1)
-                ) {
-                  return null;
-                }
-                const isSelected =
-                  selectedMonth?.year === pickerYear &&
-                  selectedMonth?.month === monthNum;
-                const isCurrentMonth =
-                  pickerYear === now.getFullYear() &&
-                  monthNum === now.getMonth() + 1;
-                return (
-                  <TouchableOpacity
-                    key={mName}
-                    style={[
-                      styles.monthCell,
-                      isCurrentMonth && !isSelected && styles.monthCellCurrent,
-                      isSelected && styles.monthCellActive,
-                    ]}
-                    activeOpacity={0.75}
-                    onPress={() => {
-                      setSelectedMonth({ year: pickerYear, month: monthNum });
-                      setDateModalOpen(false);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.monthCellText,
-                        isCurrentMonth &&
-                          !isSelected &&
-                          styles.monthCellTextCurrent,
-                        isSelected && styles.monthCellTextActive,
-                      ]}
-                    >
-                      {mName}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            <View style={styles.footerActionsRow}>
-              <TouchableOpacity
-                style={[
-                  styles.allTimeBtn,
-                  styles.footerActionBtn,
-                  selectedMonth?.year === pickerYear &&
-                    selectedMonth?.month === null &&
-                    styles.allTimeBtnActive,
-                ]}
-                activeOpacity={0.75}
-                onPress={() => {
-                  setSelectedMonth({ year: pickerYear, month: null });
-                  setDateModalOpen(false);
-                }}
-              >
-                <Text
-                  style={[
-                    styles.allTimeBtnText,
-                    selectedMonth?.year === pickerYear &&
-                      selectedMonth?.month === null &&
-                      styles.allTimeBtnTextActive,
-                  ]}
-                >
-                  Full Year {pickerYear}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.allTimeBtn,
-                  styles.footerActionBtn,
-                  selectedMonth === null && styles.allTimeBtnActive,
-                ]}
-                activeOpacity={0.75}
-                onPress={() => {
-                  setSelectedMonth(null);
-                  setDateModalOpen(false);
-                }}
-              >
-                <Text
-                  style={[
-                    styles.allTimeBtnText,
-                    selectedMonth === null && styles.allTimeBtnTextActive,
-                  ]}
-                >
-                  All Time
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        selectedMonth={selectedMonth}
+        onSelect={setSelectedMonth}
+        onClose={() => setDateModalOpen(false)}
+      />
     </View>
   );
 }

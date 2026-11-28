@@ -51,6 +51,18 @@ function matchesSelectedMonth(
   if (!dateStr) return false;
   const d = new Date(dateStr);
   if (Number.isNaN(d.getTime())) return false;
+  if (selectedMonth.preset === 'LAST_3_MONTHS') {
+    const range = getMonthRange(
+      selectedMonth.year,
+      selectedMonth.month,
+      selectedMonth.preset,
+    );
+    const t = d.getTime();
+    return (
+      t >= new Date(range.startDate).getTime() &&
+      t <= new Date(range.endDate).getTime()
+    );
+  }
   if (selectedMonth.month === null) {
     return d.getFullYear() === selectedMonth.year;
   }
@@ -70,7 +82,11 @@ export function SupplierPurchaseDetailScreen({ route, navigation }: Props) {
   const periodLabel = useMemo(
     () =>
       selectedMonth
-        ? getMonthRange(selectedMonth.year, selectedMonth.month).label
+        ? getMonthRange(
+            selectedMonth.year,
+            selectedMonth.month,
+            selectedMonth.preset,
+          ).label
         : 'All Time',
     [selectedMonth],
   );

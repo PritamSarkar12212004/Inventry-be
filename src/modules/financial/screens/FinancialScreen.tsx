@@ -150,7 +150,11 @@ export function FinancialScreen() {
   const monthRange = useMemo(
     () =>
       selectedMonth
-        ? getMonthRange(selectedMonth.year, selectedMonth.month)
+        ? getMonthRange(
+            selectedMonth.year,
+            selectedMonth.month,
+            selectedMonth.preset,
+          )
         : null,
     [selectedMonth],
   );

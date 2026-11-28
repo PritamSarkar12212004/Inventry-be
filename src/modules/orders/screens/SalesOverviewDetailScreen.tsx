@@ -94,7 +94,7 @@ export function SalesOverviewDetailScreen() {
   const [selectedMonth, setSelectedMonth] = useState<{
     year: number;
     month: number | null;
-  } | null>(null);
+  } | null>(() => ({ year: now.getFullYear(), month: null }));
   const [pickerYear, setPickerYear] = useState<number>(() =>
     now.getFullYear(),
   );

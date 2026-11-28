@@ -25,12 +25,37 @@ export const MONTH_NAMES = [
   'Dec',
 ];
 
-export type SelectedMonth = {
-  year: number;
-  month: number | null;
-} | null;
+export type SelectedMonth =
+  | {
+      year: number;
+      month: number | null;
+      preset?: 'LAST_3_MONTHS';
+    }
+  | null;
 
-export function getMonthRange(year: number, month: number | null) {
+export function getMonthRange(
+  year: number,
+  month: number | null,
+  preset?: 'LAST_3_MONTHS',
+) {
+  if (preset === 'LAST_3_MONTHS') {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth() - 2, 1, 0, 0, 0, 0);
+    const end = new Date(
+      now.getFullYear(),
+      now.getMonth() + 1,
+      0,
+      23,
+      59,
+      59,
+      999,
+    );
+    return {
+      startDate: start.toISOString(),
+      endDate: end.toISOString(),
+      label: 'Last 3M',
+    };
+  }
   if (month === null) {
     const start = new Date(year, 0, 1, 0, 0, 0, 0);
     const end = new Date(year, 11, 31, 23, 59, 59, 999);
@@ -47,6 +72,11 @@ export function getMonthRange(year: number, month: number | null) {
     endDate: end.toISOString(),
     label: `${MONTH_NAMES[month]} ${year}`,
   };
+}
+
+export function getSelectedPeriodRange(selected: SelectedMonth) {
+  if (!selected) return null;
+  return getMonthRange(selected.year, selected.month, selected.preset);
 }
 
 type MonthYearPickerModalProps = {
@@ -73,6 +103,16 @@ export function MonthYearPickerModal({
     }
   }, [visible, selectedMonth, now]);
 
+  const isThisMonth =
+    !selectedMonth?.preset &&
+    selectedMonth?.year === now.getFullYear() &&
+    selectedMonth?.month === now.getMonth();
+  const isLast3Months = selectedMonth?.preset === 'LAST_3_MONTHS';
+  const isFullYear =
+    !selectedMonth?.preset &&
+    selectedMonth?.year === pickerYear &&
+    selectedMonth?.month === null;
+
   return (
     <Modal
       visible={visible}
@@ -90,6 +130,52 @@ export function MonthYearPickerModal({
               activeOpacity={0.7}
             >
               <X size={18} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Quick Presets */}
+          <View style={styles.presetRow}>
+            <TouchableOpacity
+              style={[styles.presetBtn, isThisMonth && styles.presetBtnActive]}
+              onPress={() => {
+                onSelect({ year: now.getFullYear(), month: now.getMonth() });
+                onClose();
+              }}
+              activeOpacity={0.75}
+            >
+              <Text
+                style={[
+                  styles.presetBtnText,
+                  isThisMonth && styles.presetBtnTextActive,
+                ]}
+              >
+                This Month
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.presetBtn,
+                isLast3Months && styles.presetBtnActive,
+              ]}
+              onPress={() => {
+                onSelect({
+                  year: now.getFullYear(),
+                  month: null,
+                  preset: 'LAST_3_MONTHS',
+                });
+                onClose();
+              }}
+              activeOpacity={0.75}
+            >
+              <Text
+                style={[
+                  styles.presetBtnText,
+                  isLast3Months && styles.presetBtnTextActive,
+                ]}
+              >
+                Last 3 Months
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -124,6 +210,7 @@ export function MonthYearPickerModal({
                 return null;
               }
               const isSelected =
+                !selectedMonth?.preset &&
                 selectedMonth?.year === pickerYear &&
                 selectedMonth?.month === idx;
               const isCurrent =
@@ -162,9 +249,7 @@ export function MonthYearPickerModal({
               style={[
                 styles.allTimeBtn,
                 styles.footerActionBtn,
-                selectedMonth?.year === pickerYear &&
-                  selectedMonth?.month === null &&
-                  styles.allTimeBtnActive,
+                isFullYear && styles.allTimeBtnActive,
               ]}
               onPress={() => {
                 onSelect({ year: pickerYear, month: null });
@@ -175,9 +260,7 @@ export function MonthYearPickerModal({
               <Text
                 style={[
                   styles.allTimeBtnText,
-                  selectedMonth?.year === pickerYear &&
-                    selectedMonth?.month === null &&
-                    styles.allTimeBtnTextActive,
+                  isFullYear && styles.allTimeBtnTextActive,
                 ]}
               >
                 Full Year {pickerYear}
@@ -246,6 +329,32 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  presetRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  presetBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+  },
+  presetBtnActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  presetBtnText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  presetBtnTextActive: {
+    color: colors.surface,
   },
   yearSwitchRow: {
     flexDirection: 'row',

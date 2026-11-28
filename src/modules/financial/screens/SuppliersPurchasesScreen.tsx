@@ -60,13 +60,20 @@ export function SuppliersPurchasesScreen() {
   const navigation = useNavigation<NavProp>();
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search.trim(), 300);
-  const [selectedMonth, setSelectedMonth] = useState<SelectedMonth>(null);
+  const [selectedMonth, setSelectedMonth] = useState<SelectedMonth>(() => ({
+    year: new Date().getFullYear(),
+    month: null,
+  }));
   const [filterModalOpen, setFilterModalOpen] = useState(false);
 
   const monthRange = useMemo(
     () =>
       selectedMonth
-        ? getMonthRange(selectedMonth.year, selectedMonth.month)
+        ? getMonthRange(
+            selectedMonth.year,
+            selectedMonth.month,
+            selectedMonth.preset,
+          )
         : null,
     [selectedMonth],
   );
