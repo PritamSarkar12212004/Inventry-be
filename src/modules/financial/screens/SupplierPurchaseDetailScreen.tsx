@@ -76,7 +76,10 @@ export function SupplierPurchaseDetailScreen({ route, navigation }: Props) {
   const { title, mode, supplier, category, purchases, summaryStats } =
     route.params;
   const [search, setSearch] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState<SelectedMonth>(null);
+  const [selectedMonth, setSelectedMonth] = useState<SelectedMonth>(() => ({
+    year: new Date().getFullYear(),
+    month: null,
+  }));
   const [filterModalOpen, setFilterModalOpen] = useState(false);
 
   const periodLabel = useMemo(

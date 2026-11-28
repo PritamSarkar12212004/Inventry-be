@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useQuery } from '@tanstack/react-query';
 import {
   ArrowUpDown,
   Bell,
@@ -41,6 +42,7 @@ import {
 } from '../../../core/theme';
 import { inventoryStyles } from '../../inventory/styles';
 import type { AxiosError } from 'axios';
+import { ordersApi } from '../api';
 import {
   useCustomerDetail,
   useInfiniteSalesOrders,
@@ -97,6 +99,10 @@ function getMonthRange(year: number, month: number | null) {
     endDate: `${year}-${mm}-${String(lastDay).padStart(2, '0')}`,
     label: `${MONTH_NAMES[month - 1] ?? ''} ${year}`,
   };
+}
+
+function fmtMoney(val?: number): string {
+  return `₹${Math.round(Number(val || 0)).toLocaleString('en-IN')}`;
 }
 
 function formatDate(dateStr?: string): string {
@@ -176,6 +182,46 @@ export function CustomerDetailScreen({ route, navigation }: Props) {
     monthRange?.startDate,
     monthRange?.endDate,
   );
+
+  const {
+    data: yearOrdersData,
+    isLoading: yearOrdersLoading,
+  } = useQuery({
+    queryKey: ['orders', 'customer-year-balance', customer._id, pickerYear],
+    queryFn: async () => {
+      const res = await ordersApi.getSalesOrders({
+        customerId: customer._id,
+        pendingOnly: true,
+        startDate: `${pickerYear}-01-01`,
+        endDate: `${pickerYear}-12-31`,
+        limit: 100,
+      });
+      return res.data.items ?? [];
+    },
+    enabled: Boolean(customer._id),
+    staleTime: 60_000,
+    retry: 1,
+  });
+
+  const { monthlyBalanceMap, yearTotalDue } = useMemo(() => {
+    const map: Record<number, { due: number; count: number }> = {};
+    let totalDue = 0;
+    for (const o of yearOrdersData ?? []) {
+      if (o.fulfillmentStatus === 'CANCELLED') continue;
+      const dt = new Date(o.orderDate || '');
+      if (Number.isNaN(dt.getTime())) continue;
+      const m = dt.getMonth() + 1;
+      const due = Math.max(
+        0,
+        Number(o.grandTotal || 0) - Number(o.advancePaid || 0),
+      );
+      if (!map[m]) map[m] = { due: 0, count: 0 };
+      map[m]!.due += due;
+      map[m]!.count += 1;
+      totalDue += due;
+    }
+    return { monthlyBalanceMap: map, yearTotalDue: totalDue };
+  }, [yearOrdersData]);
 
   const activeSortLabel =
     ORDER_SORT_OPTIONS.find((f) => f.value === sortBy)?.label || '';
@@ -608,7 +654,14 @@ export function CustomerDetailScreen({ route, navigation }: Props) {
               >
                 <ChevronLeft size={18} color={colors.textPrimary} />
               </TouchableOpacity>
-              <Text style={styles.yearText}>{pickerYear}</Text>
+              <View style={styles.yearCenterWrap}>
+                <Text style={styles.yearText}>{pickerYear}</Text>
+                {yearTotalDue > 0 ? (
+                  <Text style={styles.yearDueSub}>
+                    Due {fmtMoney(yearTotalDue)}
+                  </Text>
+                ) : null}
+              </View>
               {pickerYear < now.getFullYear() ? (
                 <TouchableOpacity
                   style={styles.yearArrowBtn}
@@ -638,11 +691,16 @@ export function CustomerDetailScreen({ route, navigation }: Props) {
                 const isCurrentMonth =
                   pickerYear === now.getFullYear() &&
                   monthNum === now.getMonth() + 1;
+                const mStats = monthlyBalanceMap[monthNum];
+                const mDue = Math.round(mStats?.due ?? 0);
+                const mCount = mStats?.count ?? 0;
+                const hasDue = mDue > 0;
                 return (
                   <TouchableOpacity
                     key={mName}
                     style={[
                       styles.monthCell,
+                      hasDue && !isSelected && styles.monthCellHasDue,
                       isCurrentMonth && !isSelected && styles.monthCellCurrent,
                       isSelected && styles.monthCellActive,
                     ]}
@@ -662,6 +720,17 @@ export function CustomerDetailScreen({ route, navigation }: Props) {
                       ]}
                     >
                       {mName}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.monthBalanceText,
+                        hasDue && styles.monthBalanceDue,
+                        !hasDue && mCount > 0 && styles.monthBalancePaid,
+                        isSelected && styles.monthBalanceActive,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {yearOrdersLoading ? '...' : fmtMoney(mDue)}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -1021,11 +1090,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(15, 23, 42, 0.55)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: spacing.lg,
+    padding: spacing.md,
   },
   filterModalCard: {
-    width: '100%',
-    maxWidth: 380,
+    width: '96%',
+    maxWidth: 420,
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
     padding: spacing.lg,
@@ -1078,26 +1147,42 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
   },
+  yearCenterWrap: {
+    alignItems: 'center',
+  },
   yearText: {
-    fontSize: fontSize.md,
+    fontSize: fontSize.lg,
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
+  },
+  yearDueSub: {
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
+    color: colors.danger,
+    marginTop: 1,
   },
   monthGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 10,
     marginTop: spacing.md,
   },
   monthCell: {
     width: '31%',
-    paddingVertical: spacing.sm + 2,
+    minHeight: 64,
+    paddingVertical: spacing.sm + 3,
+    paddingHorizontal: 4,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surfaceSubtle,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 4,
+  },
+  monthCellHasDue: {
+    borderColor: colors.dangerBorder,
+    backgroundColor: colors.dangerBg,
   },
   monthCellActive: {
     backgroundColor: colors.primary,
@@ -1108,14 +1193,29 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   monthCellText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
     color: colors.textPrimary,
   },
   monthCellTextCurrent: {
     color: colors.primary,
   },
   monthCellTextActive: {
+    color: colors.surface,
+  },
+  monthBalanceText: {
+    fontSize: 11,
+    fontWeight: fontWeight.semibold,
+    color: colors.textMuted,
+  },
+  monthBalanceDue: {
+    color: colors.danger,
+    fontWeight: fontWeight.bold,
+  },
+  monthBalancePaid: {
+    color: colors.success,
+  },
+  monthBalanceActive: {
     color: colors.surface,
   },
   footerActionsRow: {
