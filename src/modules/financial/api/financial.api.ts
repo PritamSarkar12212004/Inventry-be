@@ -9,25 +9,60 @@ import type {
   ExpenseListResponse,
   ExpenseTitleListResponse,
   FinancialOverviewData,
+  FinancialTransactionsResponse,
   PurchaseExpenseSummaryResponse,
 } from '../types';
 
 export const financialApi = {
-  getOverview: () =>
+  getOverview: (params?: { startDate?: string; endDate?: string }) =>
     apiGet<{ success: boolean; data: FinancialOverviewData }>(
       '/financial/overview',
+      params,
     ),
 
-  getCustomerOutstanding: (search?: string) =>
+  getTransactions: (params?: {
+    startDate?: string;
+    endDate?: string;
+    type?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }) =>
+    apiGet<{ success: boolean; data: FinancialTransactionsResponse }>(
+      '/financial/transactions',
+      params,
+    ),
+
+  getCustomerOutstanding: (
+    search?: string,
+    startDate?: string,
+    endDate?: string,
+  ) =>
     apiGet<{ success: boolean; data: CustomerOutstandingResponse }>(
       '/financial/customer-outstanding',
-      search ? { search } : undefined,
+      search || startDate || endDate
+        ? {
+            ...(search ? { search } : {}),
+            ...(startDate ? { startDate } : {}),
+            ...(endDate ? { endDate } : {}),
+          }
+        : undefined,
     ),
 
-  getPurchaseExpenseSummary: (search?: string) =>
+  getPurchaseExpenseSummary: (
+    search?: string,
+    startDate?: string,
+    endDate?: string,
+  ) =>
     apiGet<{ success: boolean; data: PurchaseExpenseSummaryResponse }>(
       '/financial/purchase-expense-summary',
-      search ? { search } : undefined,
+      search || startDate || endDate
+        ? {
+            ...(search ? { search } : {}),
+            ...(startDate ? { startDate } : {}),
+            ...(endDate ? { endDate } : {}),
+          }
+        : undefined,
     ),
 
   getExpenses: (params?: {
@@ -35,6 +70,7 @@ export const financialApi = {
     limit?: number;
     search?: string;
     category?: string;
+    workType?: string;
     title?: string;
     startDate?: string;
     endDate?: string;
@@ -50,6 +86,7 @@ export const financialApi = {
     limit?: number;
     search?: string;
     category?: string;
+    workType?: string;
     startDate?: string;
     endDate?: string;
   }) =>

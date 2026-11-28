@@ -57,7 +57,14 @@ const MONTH_NAMES = [
   'Dec',
 ];
 
-function getMonthRange(year: number, month: number) {
+function getMonthRange(year: number, month: number | null) {
+  if (month === null) {
+    return {
+      startDate: `${year}-01-01`,
+      endDate: `${year}-12-31`,
+      label: `Year ${year}`,
+    };
+  }
   const lastDay = new Date(year, month, 0).getDate();
   const mm = String(month).padStart(2, '0');
   return {
@@ -97,7 +104,7 @@ export function ExpensesOverviewDetailScreen({ route }: { route: RouteType }) {
   const now = useMemo(() => new Date(), []);
   const [selectedMonth, setSelectedMonth] = useState<{
     year: number;
-    month: number;
+    month: number | null;
   } | null>(() => ({ year: now.getFullYear(), month: now.getMonth() + 1 }));
   const [pickerYear, setPickerYear] = useState<number>(() =>
     now.getFullYear(),
@@ -167,6 +174,10 @@ export function ExpensesOverviewDetailScreen({ route }: { route: RouteType }) {
   );
   const expenseTotalAmount =
     expensesQuery.data?.pages?.[0]?.totals?.totalAmount ?? 0;
+  const expensePaidAmount =
+    expensesQuery.data?.pages?.[0]?.totals?.paidAmount ?? expenseTotalAmount;
+  const expensePendingAmount =
+    expensesQuery.data?.pages?.[0]?.totals?.pendingAmount ?? 0;
   const expenseTotalCount =
     expensesQuery.data?.pages?.[0]?.pagination?.total ?? expenseEntries.length;
 
@@ -190,6 +201,23 @@ export function ExpensesOverviewDetailScreen({ route }: { route: RouteType }) {
           icon: <IndianRupee size={16} color={colors.primary} />,
           accent: colors.primary,
         },
+        ...(mode === 'MANPOWER'
+          ? [
+              {
+                label: 'Total Paid',
+                value: fmtMoney(expensePaidAmount),
+                icon: <IndianRupee size={16} color={colors.success} />,
+                accent: colors.success,
+              },
+              {
+                label: 'Pending Balance',
+                value: fmtMoney(expensePendingAmount),
+                icon: <IndianRupee size={16} color={colors.warning} />,
+                accent:
+                  expensePendingAmount > 0 ? colors.warning : colors.textPrimary,
+              },
+            ]
+          : []),
         {
           label: 'Total Entries',
           value: fmtNum(expenseTotalCount),
@@ -216,6 +244,25 @@ export function ExpensesOverviewDetailScreen({ route }: { route: RouteType }) {
           icon: <IndianRupee size={16} color={colors.primary} />,
           accent: colors.primary,
         },
+        ...(mode === 'MANPOWER'
+          ? [
+              {
+                label: 'Total Paid',
+                value: fmtMoney(titleSummary?.totalPaid),
+                icon: <IndianRupee size={16} color={colors.success} />,
+                accent: colors.success,
+              },
+              {
+                label: 'Pending Balance',
+                value: fmtMoney(titleSummary?.totalPending),
+                icon: <IndianRupee size={16} color={colors.warning} />,
+                accent:
+                  (titleSummary?.totalPending ?? 0) > 0
+                    ? colors.warning
+                    : colors.textPrimary,
+              },
+            ]
+          : []),
         {
           label: 'Total Items',
           value: fmtNum(titleSummary?.totalItems),
@@ -430,11 +477,15 @@ export function ExpensesOverviewDetailScreen({ route }: { route: RouteType }) {
                 const isSelected =
                   selectedMonth?.year === pickerYear &&
                   selectedMonth?.month === monthNum;
+                const isCurrentMonth =
+                  pickerYear === now.getFullYear() &&
+                  monthNum === now.getMonth() + 1;
                 return (
                   <TouchableOpacity
                     key={mName}
                     style={[
                       styles.monthCell,
+                      isCurrentMonth && !isSelected && styles.monthCellCurrent,
                       isSelected && styles.monthCellActive,
                     ]}
                     activeOpacity={0.75}
@@ -446,6 +497,9 @@ export function ExpensesOverviewDetailScreen({ route }: { route: RouteType }) {
                     <Text
                       style={[
                         styles.monthCellText,
+                        isCurrentMonth &&
+                          !isSelected &&
+                          styles.monthCellTextCurrent,
                         isSelected && styles.monthCellTextActive,
                       ]}
                     >
@@ -456,26 +510,55 @@ export function ExpensesOverviewDetailScreen({ route }: { route: RouteType }) {
               })}
             </View>
 
-            <TouchableOpacity
-              style={[
-                styles.allTimeBtn,
-                selectedMonth === null && styles.allTimeBtnActive,
-              ]}
-              activeOpacity={0.75}
-              onPress={() => {
-                setSelectedMonth(null);
-                setFilterModalOpen(false);
-              }}
-            >
-              <Text
+            <View style={styles.footerActionsRow}>
+              <TouchableOpacity
                 style={[
-                  styles.allTimeBtnText,
-                  selectedMonth === null && styles.allTimeBtnTextActive,
+                  styles.allTimeBtn,
+                  styles.footerActionBtn,
+                  selectedMonth?.year === pickerYear &&
+                    selectedMonth?.month === null &&
+                    styles.allTimeBtnActive,
                 ]}
+                activeOpacity={0.75}
+                onPress={() => {
+                  setSelectedMonth({ year: pickerYear, month: null });
+                  setFilterModalOpen(false);
+                }}
               >
-                All Time
-              </Text>
-            </TouchableOpacity>
+                <Text
+                  style={[
+                    styles.allTimeBtnText,
+                    selectedMonth?.year === pickerYear &&
+                      selectedMonth?.month === null &&
+                      styles.allTimeBtnTextActive,
+                  ]}
+                >
+                  Full Year {pickerYear}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.allTimeBtn,
+                  styles.footerActionBtn,
+                  selectedMonth === null && styles.allTimeBtnActive,
+                ]}
+                activeOpacity={0.75}
+                onPress={() => {
+                  setSelectedMonth(null);
+                  setFilterModalOpen(false);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.allTimeBtnText,
+                    selectedMonth === null && styles.allTimeBtnTextActive,
+                  ]}
+                >
+                  All Time
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -671,13 +754,27 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
+  monthCellCurrent: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary,
+  },
   monthCellText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
     color: colors.textPrimary,
   },
+  monthCellTextCurrent: {
+    color: colors.primary,
+  },
   monthCellTextActive: {
     color: colors.surface,
+  },
+  footerActionsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  footerActionBtn: {
+    flex: 1,
   },
   allTimeBtn: {
     marginTop: spacing.md,

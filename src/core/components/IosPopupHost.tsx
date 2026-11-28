@@ -87,14 +87,14 @@ export function IosPopupHost() {
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.38)',
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: spacing.xxl,
+    padding: spacing.lg,
   },
   card: {
     width: '100%',
-    maxWidth: 300,
+    maxWidth: 356,
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
     overflow: 'hidden',
@@ -102,13 +102,13 @@ const styles = StyleSheet.create({
   },
   body: {
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.lg,
+    paddingTop: spacing.xl + 4,
+    paddingBottom: spacing.xl,
     alignItems: 'center',
   },
   iconWrap: {
-    width: 44,
-    height: 44,
+    width: 52,
+    height: 52,
     borderRadius: radius.full,
     justifyContent: 'center',
     alignItems: 'center',
@@ -124,30 +124,30 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySoft,
   },
   title: {
-    fontSize: fontSize.lg,
+    fontSize: fontSize.xl,
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
     textAlign: 'center',
-    marginBottom: spacing.xs,
+    marginBottom: spacing.sm,
   },
   message: {
-    fontSize: fontSize.sm,
+    fontSize: fontSize.md,
     color: colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 19,
+    lineHeight: 22,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.border,
   },
   actionBtn: {
-    height: 48,
+    height: 52,
     justifyContent: 'center',
     alignItems: 'center',
   },
   actionText: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
+    fontWeight: fontWeight.bold,
     color: colors.primary,
   },
 });

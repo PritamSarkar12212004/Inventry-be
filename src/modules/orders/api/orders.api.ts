@@ -20,6 +20,8 @@ export const ordersApi = {
     customerId?: string;
     pendingOnly?: boolean;
     sortBy?: OrderSortBy;
+    startDate?: string;
+    endDate?: string;
   }) =>
     apiGet<{ success: boolean; data: SalesOrderListResponse }>(
       '/sales-orders',

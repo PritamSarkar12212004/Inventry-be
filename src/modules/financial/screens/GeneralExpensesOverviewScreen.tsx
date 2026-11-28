@@ -52,7 +52,14 @@ const MONTH_NAMES = [
   'Dec',
 ];
 
-function getMonthRange(year: number, month: number) {
+function getMonthRange(year: number, month: number | null) {
+  if (month === null) {
+    return {
+      startDate: `${year}-01-01`,
+      endDate: `${year}-12-31`,
+      label: `Year ${year}`,
+    };
+  }
   const lastDay = new Date(year, month, 0).getDate();
   const mm = String(month).padStart(2, '0');
   return {
@@ -77,7 +84,7 @@ export function GeneralExpensesOverviewScreen() {
   const now = useMemo(() => new Date(), []);
   const [selectedMonth, setSelectedMonth] = useState<{
     year: number;
-    month: number;
+    month: number | null;
   } | null>(() => ({ year: now.getFullYear(), month: now.getMonth() + 1 }));
   const [pickerYear, setPickerYear] = useState<number>(() =>
     now.getFullYear(),
@@ -122,10 +129,13 @@ export function GeneralExpensesOverviewScreen() {
   const overview = data?.pages?.[0]?.overview;
   const categories = useMemo(() => {
     const all = data?.pages.flatMap((p) => p.items) ?? [];
-    return [...all].sort(
+    const filtered = selectedMonth
+      ? all.filter((c) => Number(c.expenseCount || 0) > 0)
+      : all;
+    return [...filtered].sort(
       (a, b) => Number(b.totalAmount || 0) - Number(a.totalAmount || 0),
     );
-  }, [data]);
+  }, [data, selectedMonth]);
 
   const summaryRows = [
     {
@@ -316,11 +326,15 @@ export function GeneralExpensesOverviewScreen() {
                 const isSelected =
                   selectedMonth?.year === pickerYear &&
                   selectedMonth?.month === monthNum;
+                const isCurrentMonth =
+                  pickerYear === now.getFullYear() &&
+                  monthNum === now.getMonth() + 1;
                 return (
                   <TouchableOpacity
                     key={mName}
                     style={[
                       styles.monthCell,
+                      isCurrentMonth && !isSelected && styles.monthCellCurrent,
                       isSelected && styles.monthCellActive,
                     ]}
                     activeOpacity={0.75}
@@ -332,6 +346,9 @@ export function GeneralExpensesOverviewScreen() {
                     <Text
                       style={[
                         styles.monthCellText,
+                        isCurrentMonth &&
+                          !isSelected &&
+                          styles.monthCellTextCurrent,
                         isSelected && styles.monthCellTextActive,
                       ]}
                     >
@@ -342,26 +359,55 @@ export function GeneralExpensesOverviewScreen() {
               })}
             </View>
 
-            <TouchableOpacity
-              style={[
-                styles.allTimeBtn,
-                selectedMonth === null && styles.allTimeBtnActive,
-              ]}
-              activeOpacity={0.75}
-              onPress={() => {
-                setSelectedMonth(null);
-                setFilterModalOpen(false);
-              }}
-            >
-              <Text
+            <View style={styles.footerActionsRow}>
+              <TouchableOpacity
                 style={[
-                  styles.allTimeBtnText,
-                  selectedMonth === null && styles.allTimeBtnTextActive,
+                  styles.allTimeBtn,
+                  styles.footerActionBtn,
+                  selectedMonth?.year === pickerYear &&
+                    selectedMonth?.month === null &&
+                    styles.allTimeBtnActive,
                 ]}
+                activeOpacity={0.75}
+                onPress={() => {
+                  setSelectedMonth({ year: pickerYear, month: null });
+                  setFilterModalOpen(false);
+                }}
               >
-                All Time
-              </Text>
-            </TouchableOpacity>
+                <Text
+                  style={[
+                    styles.allTimeBtnText,
+                    selectedMonth?.year === pickerYear &&
+                      selectedMonth?.month === null &&
+                      styles.allTimeBtnTextActive,
+                  ]}
+                >
+                  Full Year {pickerYear}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.allTimeBtn,
+                  styles.footerActionBtn,
+                  selectedMonth === null && styles.allTimeBtnActive,
+                ]}
+                activeOpacity={0.75}
+                onPress={() => {
+                  setSelectedMonth(null);
+                  setFilterModalOpen(false);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.allTimeBtnText,
+                    selectedMonth === null && styles.allTimeBtnTextActive,
+                  ]}
+                >
+                  All Time
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -557,13 +603,27 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
+  monthCellCurrent: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary,
+  },
   monthCellText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
     color: colors.textPrimary,
   },
+  monthCellTextCurrent: {
+    color: colors.primary,
+  },
   monthCellTextActive: {
     color: colors.surface,
+  },
+  footerActionsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  footerActionBtn: {
+    flex: 1,
   },
   allTimeBtn: {
     marginTop: spacing.md,

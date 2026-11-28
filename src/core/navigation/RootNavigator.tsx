@@ -64,6 +64,7 @@ const ExpenseTitleDetailScreen = ({
       mode: 'GENERAL' | 'MANPOWER';
       categoryCode?: string;
       categoryName?: string;
+      lockedWorkType?: 'CONTRACT' | 'SALARY' | 'DAILY_WAGE';
     };
   };
 }) => (
@@ -72,6 +73,7 @@ const ExpenseTitleDetailScreen = ({
     categoryCode={route.params.categoryCode}
     categoryName={route.params.categoryName}
     titleFilter={route.params.title}
+    lockedWorkType={route.params.lockedWorkType}
   />
 );
 

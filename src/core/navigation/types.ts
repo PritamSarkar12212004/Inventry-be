@@ -59,6 +59,7 @@ export type RootStackParamList = {
     mode: 'GENERAL' | 'MANPOWER';
     categoryCode?: string;
     categoryName?: string;
+    lockedWorkType?: 'CONTRACT' | 'SALARY' | 'DAILY_WAGE';
   };
   ExpensesOverviewDetail: {
     mode: 'GENERAL' | 'MANPOWER';

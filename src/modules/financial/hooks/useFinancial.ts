@@ -12,11 +12,25 @@ import type {
 
 export const FINANCIAL_QUERY_KEYS = {
   all: ['financial'] as const,
-  overview: ['financial', 'overview'] as const,
-  customerOutstanding: (search?: string) =>
-    ['financial', 'customer-outstanding', search] as const,
-  purchaseExpenseSummary: (search?: string) =>
-    ['financial', 'purchase-expense-summary', search] as const,
+  overview: (startDate?: string, endDate?: string) =>
+    ['financial', 'overview', startDate, endDate] as const,
+  transactions: (
+    startDate?: string,
+    endDate?: string,
+    type?: string,
+    search?: string,
+  ) => ['financial', 'transactions', startDate, endDate, type, search] as const,
+  customerOutstanding: (
+    search?: string,
+    startDate?: string,
+    endDate?: string,
+  ) => ['financial', 'customer-outstanding', search, startDate, endDate] as const,
+  purchaseExpenseSummary: (
+    search?: string,
+    startDate?: string,
+    endDate?: string,
+  ) =>
+    ['financial', 'purchase-expense-summary', search, startDate, endDate] as const,
   productExpenses: (productId: string) =>
     ['financial', 'product-expenses', productId] as const,
   expenses: (
@@ -25,6 +39,7 @@ export const FINANCIAL_QUERY_KEYS = {
     title?: string,
     startDate?: string,
     endDate?: string,
+    workType?: string,
   ) =>
     [
       'financial',
@@ -34,6 +49,7 @@ export const FINANCIAL_QUERY_KEYS = {
       title,
       startDate,
       endDate,
+      workType,
     ] as const,
   expenseTitles: (
     search?: string,
@@ -41,6 +57,7 @@ export const FINANCIAL_QUERY_KEYS = {
     startDate?: string,
     endDate?: string,
     limit = 15,
+    workType?: string,
   ) =>
     [
       'financial',
@@ -50,6 +67,7 @@ export const FINANCIAL_QUERY_KEYS = {
       startDate,
       endDate,
       limit,
+      workType,
     ] as const,
   expenseCategories: (
     search?: string,
@@ -67,31 +85,90 @@ export const FINANCIAL_QUERY_KEYS = {
     ] as const,
 };
 
-export function useFinancialOverview() {
+export function useFinancialOverview(startDate?: string, endDate?: string) {
   return useQuery({
-    queryKey: FINANCIAL_QUERY_KEYS.overview,
+    queryKey: FINANCIAL_QUERY_KEYS.overview(startDate, endDate),
     queryFn: async () => {
-      const res = await financialApi.getOverview();
+      const res = await financialApi.getOverview(
+        startDate || endDate ? { startDate, endDate } : undefined,
+      );
       return res.data;
     },
   });
 }
 
-export function useCustomerOutstanding(search?: string) {
+export function useInfiniteFinancialTransactions(params?: {
+  startDate?: string;
+  endDate?: string;
+  type?: string;
+  search?: string;
+  limit?: number;
+}) {
+  const limit = params?.limit ?? 15;
+  return useInfiniteQuery({
+    queryKey: [
+      ...FINANCIAL_QUERY_KEYS.transactions(
+        params?.startDate,
+        params?.endDate,
+        params?.type,
+        params?.search,
+      ),
+      'infinite',
+      limit,
+    ] as const,
+    initialPageParam: 1,
+    queryFn: async ({ pageParam }) => {
+      const res = await financialApi.getTransactions({
+        ...params,
+        page: pageParam,
+        limit,
+      });
+      return res.data;
+    },
+    getNextPageParam: (lastPage) =>
+      lastPage.pagination?.hasMore ? lastPage.pagination.page + 1 : undefined,
+  });
+}
+
+export function useCustomerOutstanding(
+  search?: string,
+  startDate?: string,
+  endDate?: string,
+) {
   return useQuery({
-    queryKey: FINANCIAL_QUERY_KEYS.customerOutstanding(search),
+    queryKey: FINANCIAL_QUERY_KEYS.customerOutstanding(
+      search,
+      startDate,
+      endDate,
+    ),
     queryFn: async () => {
-      const res = await financialApi.getCustomerOutstanding(search);
+      const res = await financialApi.getCustomerOutstanding(
+        search,
+        startDate,
+        endDate,
+      );
       return res.data;
     },
   });
 }
 
-export function usePurchaseExpenseSummary(search?: string) {
+export function usePurchaseExpenseSummary(
+  search?: string,
+  startDate?: string,
+  endDate?: string,
+) {
   return useQuery({
-    queryKey: FINANCIAL_QUERY_KEYS.purchaseExpenseSummary(search),
+    queryKey: FINANCIAL_QUERY_KEYS.purchaseExpenseSummary(
+      search,
+      startDate,
+      endDate,
+    ),
     queryFn: async () => {
-      const res = await financialApi.getPurchaseExpenseSummary(search);
+      const res = await financialApi.getPurchaseExpenseSummary(
+        search,
+        startDate,
+        endDate,
+      );
       return res.data;
     },
   });
@@ -119,6 +196,7 @@ export function useInfiniteExpenses(
   startDate?: string,
   endDate?: string,
   enabled = true,
+  workType?: string,
 ) {
   return useInfiniteQuery({
     queryKey: FINANCIAL_QUERY_KEYS.expenses(
@@ -127,6 +205,7 @@ export function useInfiniteExpenses(
       title,
       startDate,
       endDate,
+      workType,
     ),
     initialPageParam: 1,
     enabled,
@@ -136,6 +215,7 @@ export function useInfiniteExpenses(
         limit: 20,
         search: search || undefined,
         category: category || undefined,
+        workType: workType || undefined,
         title: title || undefined,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
@@ -161,6 +241,7 @@ export function useInfiniteExpenseTitles(
   startDate?: string,
   endDate?: string,
   limit = 15,
+  workType?: string,
 ) {
   return useInfiniteQuery({
     queryKey: FINANCIAL_QUERY_KEYS.expenseTitles(
@@ -169,6 +250,7 @@ export function useInfiniteExpenseTitles(
       startDate,
       endDate,
       limit,
+      workType,
     ),
     initialPageParam: 1,
     enabled,
@@ -178,6 +260,7 @@ export function useInfiniteExpenseTitles(
         limit,
         search: search || undefined,
         category: category || undefined,
+        workType: workType || undefined,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
       });

@@ -21,6 +21,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   ArrowUpDown,
   Bell,
+  Calendar,
   Check,
   ChevronRight,
   Clock,
@@ -42,6 +43,11 @@ import {
   useSendCustomerPaymentReminder,
 } from '../../orders/hooks';
 import type { OrderSortBy, SalesOrderRecord } from '../../orders/types';
+import {
+  MonthYearPickerModal,
+  getMonthRange,
+  type SelectedMonth,
+} from '../components';
 import { useCustomerOutstanding } from '../hooks';
 import { PendingInvoicesSkeleton } from '../skeletons';
 
@@ -87,8 +93,24 @@ function getInitials(name: string): string {
 
 export function CustomerPendingDetailScreen({ route, navigation }: Props) {
   const { customer: routeCustomer } = route.params;
+  const [selectedMonth, setSelectedMonth] = useState<SelectedMonth>(null);
+  const [filterModalOpen, setFilterModalOpen] = useState(false);
+
+  const monthRange = useMemo(
+    () =>
+      selectedMonth
+        ? getMonthRange(selectedMonth.year, selectedMonth.month)
+        : null,
+    [selectedMonth],
+  );
+  const periodLabel = monthRange?.label ?? 'All Time';
+
   const { data: outstandingData, refetch: refetchOutstanding } =
-    useCustomerOutstanding();
+    useCustomerOutstanding(
+      undefined,
+      monthRange?.startDate,
+      monthRange?.endDate,
+    );
 
   const customer = useMemo(() => {
     if (!outstandingData) return routeCustomer;
@@ -102,11 +124,12 @@ export function CustomerPendingDetailScreen({ route, navigation }: Props) {
     return {
       ...routeCustomer,
       pendingOrdersCount: 0,
-      totalPaid: routeCustomer.totalBilled,
+      totalBilled: selectedMonth ? 0 : routeCustomer.totalBilled,
+      totalPaid: selectedMonth ? 0 : routeCustomer.totalBilled,
       outstanding: 0,
       ageingDays: 0,
     };
-  }, [outstandingData, routeCustomer]);
+  }, [outstandingData, routeCustomer, selectedMonth]);
 
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<OrderSortBy>('DATE_DESC');
@@ -135,6 +158,8 @@ export function CustomerPendingDetailScreen({ route, navigation }: Props) {
     sortBy,
     customer.customerId || undefined,
     true,
+    monthRange?.startDate,
+    monthRange?.endDate,
   );
 
   const orders = useMemo(() => {
@@ -173,29 +198,41 @@ export function CustomerPendingDetailScreen({ route, navigation }: Props) {
     });
   }, [customer.customerId, isSendingReminder, sendReminder]);
 
-  const renderAlertButton = useCallback(
+  const renderHeaderRight = useCallback(
     () => (
-      <TouchableOpacity
-        style={styles.headerAlertBtn}
-        onPress={handleAlertPress}
-        activeOpacity={0.75}
-        disabled={isSendingReminder}
-      >
-        {isSendingReminder ? (
-          <ActivityIndicator size="small" color={colors.primary} />
-        ) : (
-          <Bell size={19} color={colors.primary} />
-        )}
-      </TouchableOpacity>
+      <View style={styles.headerRightRow}>
+        <TouchableOpacity
+          style={styles.headerCalBtn}
+          activeOpacity={0.75}
+          onPress={() => setFilterModalOpen(true)}
+        >
+          <Calendar size={15} color={colors.textPrimary} />
+          <Text style={styles.headerCalText}>{periodLabel}</Text>
+        </TouchableOpacity>
+        {hasPending ? (
+          <TouchableOpacity
+            style={styles.headerAlertBtn}
+            onPress={handleAlertPress}
+            activeOpacity={0.75}
+            disabled={isSendingReminder}
+          >
+            {isSendingReminder ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Bell size={18} color={colors.primary} />
+            )}
+          </TouchableOpacity>
+        ) : null}
+      </View>
     ),
-    [handleAlertPress, isSendingReminder],
+    [handleAlertPress, hasPending, isSendingReminder, periodLabel],
   );
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerRight: hasPending ? renderAlertButton : undefined,
+      headerRight: renderHeaderRight,
     });
-  }, [navigation, hasPending, renderAlertButton]);
+  }, [navigation, renderHeaderRight]);
 
   const activeSortLabel =
     ORDER_SORT_OPTIONS.find((opt) => opt.value === sortBy)?.label ??
@@ -609,11 +646,39 @@ export function CustomerPendingDetailScreen({ route, navigation }: Props) {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      <MonthYearPickerModal
+        visible={filterModalOpen}
+        selectedMonth={selectedMonth}
+        onSelect={setSelectedMonth}
+        onClose={() => setFilterModalOpen(false)}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  headerRightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerCalBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 5,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  headerCalText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: colors.textPrimary,
+  },
   headerAlertBtn: {
     width: 36,
     height: 36,

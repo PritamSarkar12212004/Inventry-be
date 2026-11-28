@@ -11,6 +11,7 @@ import {
   Modal,
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -29,6 +30,7 @@ import {
 } from '@gorhom/bottom-sheet';
 import {
   Calendar,
+  CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -70,18 +72,39 @@ import {
   ExpenseFooterSkeleton,
   ExpenseListSkeleton,
 } from '../skeletons';
-import type { ExpenseCategory, ExpenseItem } from '../types';
+import type {
+  ExpenseCategory,
+  ExpenseItem,
+  ManpowerWorkType,
+} from '../types';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
 type ExpensesMode = 'GENERAL' | 'MANPOWER';
 
-type ExpenseGroup = {
-  key: string;
-  title: string;
-  totalAmount: number;
-  count: number;
-  latestDate?: string;
+const WORK_TYPE_FILTERS: Array<{
+  label: string;
+  value: 'ALL' | ManpowerWorkType;
+}> = [
+  { label: 'All', value: 'ALL' },
+  { label: 'Contract', value: 'CONTRACT' },
+  { label: 'Salary', value: 'SALARY' },
+  { label: 'Daily Wage', value: 'DAILY_WAGE' },
+];
+
+const WORK_TYPE_OPTIONS: Array<{
+  label: string;
+  value: ManpowerWorkType;
+}> = [
+  { label: 'Contract (Per Unit)', value: 'CONTRACT' },
+  { label: 'Salary', value: 'SALARY' },
+  { label: 'Daily Wage', value: 'DAILY_WAGE' },
+];
+
+const WORK_TYPE_LABELS: Record<ManpowerWorkType, string> = {
+  CONTRACT: 'Contract',
+  SALARY: 'Salary',
+  DAILY_WAGE: 'Daily Wage',
 };
 
 const GENERAL_CATEGORIES: Array<{ label: string; value: ExpenseCategory }> = [
@@ -149,7 +172,14 @@ const MONTH_NAMES = [
   'Dec',
 ];
 
-function getMonthRange(year: number, month: number) {
+function getMonthRange(year: number, month: number | null) {
+  if (month === null) {
+    return {
+      startDate: `${year}-01-01`,
+      endDate: `${year}-12-31`,
+      label: `Year ${year}`,
+    };
+  }
   const lastDay = new Date(year, month, 0).getDate();
   const mm = String(month).padStart(2, '0');
   return {
@@ -164,11 +194,13 @@ export function ExpensesScreen({
   categoryCode,
   categoryName,
   titleFilter,
+  lockedWorkType,
 }: {
   mode?: ExpensesMode;
   categoryCode?: string;
   categoryName?: string;
   titleFilter?: string;
+  lockedWorkType?: ManpowerWorkType;
 }) {
   const navigation = useNavigation<NavProp>();
   const isManpower = mode === 'MANPOWER';
@@ -183,12 +215,19 @@ export function ExpensesScreen({
 
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search.trim(), 350);
+  const [workTypeFilter, setWorkTypeFilter] = useState<
+    'ALL' | ManpowerWorkType
+  >('ALL');
 
   const [category, setCategory] = useState<ExpenseCategory>(
     categoryCode || (isManpower ? 'LABOUR_WAGES' : 'RENT_UTILITIES'),
   );
   const [title, setTitle] = useState('');
   const [amountText, setAmountText] = useState('');
+  const [workType, setWorkType] = useState<ManpowerWorkType>('CONTRACT');
+  const [workItem, setWorkItem] = useState('');
+  const [unitsText, setUnitsText] = useState('');
+  const [rateText, setRateText] = useState('');
   const [expenseDate, setExpenseDate] = useState<string>(todayIsoDate);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [notes, setNotes] = useState('');
@@ -198,8 +237,8 @@ export function ExpensesScreen({
   const now = useMemo(() => new Date(), []);
   const [selectedMonth, setSelectedMonth] = useState<{
     year: number;
-    month: number;
-  }>(() => ({ year: now.getFullYear(), month: now.getMonth() + 1 }));
+    month: number | null;
+  } | null>(() => ({ year: now.getFullYear(), month: now.getMonth() + 1 }));
   const [pickerYear, setPickerYear] = useState<number>(() =>
     now.getFullYear(),
   );
@@ -207,39 +246,45 @@ export function ExpensesScreen({
 
   const monthRange = useMemo(
     () =>
-      isDetailMode
+      selectedMonth
         ? getMonthRange(selectedMonth.year, selectedMonth.month)
         : null,
-    [isDetailMode, selectedMonth],
+    [selectedMonth],
   );
+  const periodLabel = monthRange?.label ?? 'All Time';
 
   useLayoutEffect(() => {
-    if (!isDetailMode) return;
     navigation.setOptions({
       headerRight: () => (
         <TouchableOpacity
           style={styles.headerCalBtn}
           activeOpacity={0.75}
           onPress={() => {
-            setPickerYear(selectedMonth.year);
+            setPickerYear(selectedMonth?.year ?? now.getFullYear());
             setFilterModalOpen(true);
           }}
         >
           <Calendar size={17} color={colors.textPrimary} />
-          {monthRange ? (
-            <Text style={styles.headerCalText}>{monthRange.label}</Text>
-          ) : null}
+          <Text style={styles.headerCalText}>{periodLabel}</Text>
         </TouchableOpacity>
       ),
     });
-  }, [navigation, isDetailMode, monthRange, selectedMonth]);
+  }, [navigation, periodLabel, selectedMonth, now]);
 
   const effectiveCategory = isManpower ? 'LABOUR_WAGES' : categoryCode;
+  const activeWorkType =
+    isManpower && !isDetailMode && workTypeFilter !== 'ALL'
+      ? workTypeFilter
+      : undefined;
 
   const titlesQuery = useInfiniteExpenseTitles(
     debouncedSearch || undefined,
     effectiveCategory,
     !isDetailMode,
+    monthRange?.startDate,
+    monthRange?.endDate,
+    15,
+    activeWorkType,
   );
 
   const expensesQuery = useInfiniteExpenses(
@@ -278,16 +323,33 @@ export function ExpensesScreen({
 
   const lastTitleSummaryRef = useRef<{
     totalAmount: number;
+    totalPaid?: number;
+    totalPending?: number;
     totalEntries: number;
     totalItems: number;
     thisMonthAmount?: number;
     topItem?: { title: string; totalAmount: number } | null;
+    availableWorkTypes?: ManpowerWorkType[];
   } | null>(null);
+  const lastSummaryContextRef = useRef<string>('');
+  const summaryContextKey = `${periodLabel}::${workTypeFilter}`;
+  if (lastSummaryContextRef.current !== summaryContextKey) {
+    lastSummaryContextRef.current = summaryContextKey;
+    lastTitleSummaryRef.current = null;
+  }
   if (!isDetailMode && titlesQuery.data?.pages?.[0]?.summary) {
     lastTitleSummaryRef.current = titlesQuery.data.pages[0].summary;
   }
   const titleSummary =
     titlesQuery.data?.pages?.[0]?.summary ?? lastTitleSummaryRef.current;
+
+  const visibleWorkTypeFilters = useMemo(() => {
+    const avail = titleSummary?.availableWorkTypes ?? [];
+    if (avail.length === 0) return [];
+    return WORK_TYPE_FILTERS.filter(
+      (f) => f.value === 'ALL' || avail.includes(f.value),
+    );
+  }, [titleSummary?.availableWorkTypes]);
 
   const hasOverviewData = isDetailMode
     ? Boolean(expensesQuery.data?.pages?.[0])
@@ -306,6 +368,14 @@ export function ExpensesScreen({
     return titleSummary?.totalAmount ?? 0;
   }, [isDetailMode, expensesQuery.data, titleSummary, items]);
 
+  const totalPaid = isDetailMode
+    ? expensesQuery.data?.pages?.[0]?.totals?.paidAmount ?? totalAmount
+    : titleSummary?.totalPaid ?? totalAmount;
+
+  const totalPending = isDetailMode
+    ? expensesQuery.data?.pages?.[0]?.totals?.pendingAmount ?? 0
+    : titleSummary?.totalPending ?? 0;
+
   const totalEntries = isDetailMode
     ? expensesQuery.data?.pages?.[0]?.pagination?.total ?? items.length
     : titleSummary?.totalEntries ?? 0;
@@ -313,11 +383,35 @@ export function ExpensesScreen({
   const totalItemsCount =
     titleSummary?.totalItems ?? groupedItems.length;
 
+  const parsedUnits = Number.parseFloat(unitsText) || 0;
+  const parsedRate = Number.parseFloat(rateText) || 0;
+  const computedManpowerTotal =
+    isManpower && (workType === 'CONTRACT' || workType === 'DAILY_WAGE')
+      ? parsedUnits > 0 && parsedRate > 0
+        ? Math.round(parsedUnits * parsedRate * 100) / 100
+        : Number.parseFloat(amountText) || 0
+      : Number.parseFloat(amountText) || 0;
+
+  const effectiveLockedWorkType =
+    editingItem?.manpowerDetails?.workType ??
+    (isDetailMode
+      ? items.find((it) => it.manpowerDetails?.workType)?.manpowerDetails
+          ?.workType ?? lockedWorkType
+      : undefined);
+  const isWorkTypeLocked = Boolean(effectiveLockedWorkType);
+
   const resetForm = () => {
     setEditingItem(null);
     setCategory(categoryCode || (isManpower ? 'LABOUR_WAGES' : 'RENT_UTILITIES'));
     setTitle(titleFilter || '');
     setAmountText('');
+    setWorkType(
+      effectiveLockedWorkType ??
+        (workTypeFilter !== 'ALL' ? workTypeFilter : 'CONTRACT'),
+    );
+    setWorkItem('');
+    setUnitsText('');
+    setRateText('');
     setExpenseDate(todayIsoDate());
     setCalendarOpen(false);
     setNotes('');
@@ -346,6 +440,18 @@ export function ExpensesScreen({
     setCategory(item.category);
     setTitle(item.title || '');
     setAmountText(String(item.amount ?? item.totalAmount ?? ''));
+    const md = item.manpowerDetails;
+    if (md?.workType) {
+      setWorkType(md.workType);
+      setWorkItem(md.workItem || '');
+      setUnitsText(md.units ? String(md.units) : '');
+      setRateText(md.ratePerUnit ? String(md.ratePerUnit) : '');
+    } else {
+      setWorkType('CONTRACT');
+      setWorkItem('');
+      setUnitsText('');
+      setRateText('');
+    }
     const parsed = item.expenseDate ? new Date(item.expenseDate) : null;
     if (parsed && !Number.isNaN(parsed.getTime())) {
       const y = parsed.getFullYear();
@@ -365,19 +471,58 @@ export function ExpensesScreen({
     addSheetRef.current?.dismiss();
   };
 
+  const handleMarkPaid = (item: ExpenseItem) => {
+    if (isSaving) return;
+    const total = Number(item.totalAmount ?? item.amount ?? 0);
+    const md = item.manpowerDetails;
+    updateExpense(
+      {
+        id: item._id,
+        payload: {
+          manpowerDetails: {
+            workType: md?.workType || 'CONTRACT',
+            workItem: md?.workItem || '',
+            units: md?.units || 0,
+            ratePerUnit: md?.ratePerUnit || 0,
+            paidAmount: total,
+          },
+        },
+      },
+      {
+        onSuccess: () => {
+          popup.success('Settled', 'Marked as fully paid.');
+        },
+        onError: (err) => {
+          const axiosErr = err as AxiosError<{ message?: string }>;
+          popup.error(
+            'Update Failed',
+            axiosErr.response?.data?.message || 'Unable to settle payment.',
+          );
+        },
+      },
+    );
+  };
+
   const handleSave = () => {
     if (isSaving) return;
     const trimmedTitle = title.trim();
-    const amount = Number.parseFloat(amountText);
+    const amount = isManpower
+      ? computedManpowerTotal
+      : Number.parseFloat(amountText);
     if (!trimmedTitle) {
       popup.error(
         'Required',
-        isManpower ? 'Worker / manpower title is required.' : 'Expense title is required.',
+        isManpower ? 'Worker / contractor name is required.' : 'Expense title is required.',
       );
       return;
     }
     if (!Number.isFinite(amount) || amount <= 0) {
-      popup.error('Invalid Amount', 'Please enter an amount greater than 0.');
+      popup.error(
+        'Invalid Amount',
+        isManpower && (workType === 'CONTRACT' || workType === 'DAILY_WAGE')
+          ? 'Please enter valid units and rate greater than 0.'
+          : 'Please enter an amount greater than 0.',
+      );
       return;
     }
 
@@ -387,6 +532,17 @@ export function ExpensesScreen({
       amount,
       expenseDate,
       notes: notes.trim(),
+      ...(isManpower
+        ? {
+            manpowerDetails: {
+              workType,
+              workItem: workItem.trim(),
+              units: workType === 'SALARY' ? 1 : parsedUnits,
+              ratePerUnit: workType === 'SALARY' ? amount : parsedRate,
+              paidAmount: amount,
+            },
+          }
+        : {}),
     };
 
     if (editingItem) {
@@ -502,8 +658,8 @@ export function ExpensesScreen({
           <View style={styles.overviewHeaderRight}>
             <View style={styles.entriesBadge}>
               <Text style={styles.entriesBadgeText}>
-                {isDetailMode && monthRange
-                  ? monthRange.label
+                {isDetailMode
+                  ? periodLabel
                   : `${totalEntries.toLocaleString('en-IN')} ${totalEntries === 1 ? 'Entry' : 'Entries'}`}
               </Text>
             </View>
@@ -528,11 +684,21 @@ export function ExpensesScreen({
             <View style={styles.metricLabelRow}>
               <Layers size={12} color={colors.primary} />
               <Text style={styles.metricLabel}>
-                {isDetailMode ? 'Entries' : 'Items'}
+                {isDetailMode
+                  ? isManpower
+                    ? 'Paid'
+                    : 'Entries'
+                  : isManpower
+                    ? 'Workers'
+                    : 'Items'}
               </Text>
             </View>
-            <Text style={styles.metricVal}>
-              {isDetailMode ? totalEntries : totalItemsCount}
+            <Text style={styles.metricVal} numberOfLines={1}>
+              {isDetailMode
+                ? isManpower
+                  ? fmtMoney(totalPaid)
+                  : totalEntries
+                : totalItemsCount}
             </Text>
           </View>
 
@@ -540,18 +706,44 @@ export function ExpensesScreen({
             <View style={styles.metricLabelRow}>
               <Hash size={12} color={colors.primary} />
               <Text style={styles.metricLabel}>
-                {isDetailMode ? 'Avg / Entry' : 'This Month'}
+                {isDetailMode
+                  ? isManpower
+                    ? 'Pending'
+                    : 'Avg / Entry'
+                  : isManpower
+                    ? 'Pending'
+                    : 'This Month'}
               </Text>
             </View>
-            <Text style={styles.metricVal} numberOfLines={1}>
+            <Text
+              style={[
+                styles.metricVal,
+                isManpower && totalPending > 0 && styles.pendingMetricVal,
+              ]}
+              numberOfLines={1}
+            >
               {isDetailMode
-                ? fmtMoney(totalEntries > 0 ? totalAmount / totalEntries : 0)
-                : fmtMoney(titleSummary?.thisMonthAmount)}
+                ? isManpower
+                  ? fmtMoney(totalPending)
+                  : fmtMoney(totalEntries > 0 ? totalAmount / totalEntries : 0)
+                : isManpower
+                  ? fmtMoney(totalPending)
+                  : fmtMoney(titleSummary?.thisMonthAmount)}
             </Text>
           </View>
         </View>
 
-        {!isDetailMode && titleSummary?.topItem ? (
+        {!isDetailMode && isManpower ? (
+          <View style={styles.statusRow}>
+            <View style={styles.statusChip}>
+              <View style={styles.topDot} />
+              <Text style={styles.statusText} numberOfLines={1}>
+                Paid: {fmtMoney(totalPaid)} • This Month:{' '}
+                {fmtMoney(titleSummary?.thisMonthAmount)}
+              </Text>
+            </View>
+          </View>
+        ) : !isDetailMode && titleSummary?.topItem ? (
           <View style={styles.statusRow}>
             <View style={styles.statusChip}>
               <View style={styles.topDot} />
@@ -575,7 +767,7 @@ export function ExpensesScreen({
             <TextInput
               style={styles.searchInput}
               placeholder={
-                isManpower ? 'Search manpower expense...' : 'Search expense...'
+                isManpower ? 'Search worker / contractor...' : 'Search expense...'
               }
               placeholderTextColor={colors.textMuted}
               value={search}
@@ -587,6 +779,34 @@ export function ExpensesScreen({
               </TouchableOpacity>
             ) : null}
           </View>
+          {isManpower && visibleWorkTypeFilters.length > 1 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterChipsRow}
+            >
+              {visibleWorkTypeFilters.map((f) => {
+                const active = workTypeFilter === f.value;
+                return (
+                  <TouchableOpacity
+                    key={f.value}
+                    style={[styles.filterChip, active && styles.filterChipActive]}
+                    onPress={() => setWorkTypeFilter(f.value)}
+                    activeOpacity={0.75}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        active && styles.filterChipTextActive,
+                      ]}
+                    >
+                      {f.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          ) : null}
         </View>
       ) : null}
 
@@ -628,53 +848,120 @@ export function ExpensesScreen({
           ListFooterComponent={
             isFetchingNextPage ? <ExpenseFooterSkeleton /> : undefined
           }
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              <View style={styles.cardTop}>
-                <View style={styles.cardTitleWrap}>
-                  <Text style={styles.cardTitle} numberOfLines={2}>
-                    {item.title}
-                  </Text>
-                  <View style={styles.dateBadge}>
-                    <Calendar size={12} color={colors.primary} />
-                    <Text style={styles.dateText}>
-                      {fmtDate(item.expenseDate)}
+          renderItem={({ item }) => {
+            const md = item.manpowerDetails;
+            const pendingAmt = Number(md?.pendingAmount || 0);
+            const paidAmt = Number(
+              md?.paidAmount ?? (item.totalAmount ?? item.amount ?? 0),
+            );
+            const workLabel = md?.workType
+              ? WORK_TYPE_LABELS[md.workType]
+              : null;
+            const hasCalc =
+              md &&
+              Number(md.units || 0) > 0 &&
+              Number(md.ratePerUnit || 0) > 0 &&
+              md.workType !== 'SALARY';
+
+            return (
+              <View style={styles.card}>
+                <View style={styles.cardTop}>
+                  <View style={styles.cardTitleWrap}>
+                    <Text style={styles.cardTitle} numberOfLines={2}>
+                      {item.title}
+                    </Text>
+                    <View style={styles.badgeWrapRow}>
+                      {workLabel ? (
+                        <View style={styles.workTypePill}>
+                          <Text style={styles.workTypePillText}>
+                            {workLabel}
+                          </Text>
+                        </View>
+                      ) : null}
+                      <View style={styles.dateBadge}>
+                        <Calendar size={12} color={colors.primary} />
+                        <Text style={styles.dateText}>
+                          {fmtDate(item.expenseDate)}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                  <View style={styles.amountPill}>
+                    <Text style={styles.amountText}>
+                      {fmtMoney(item.totalAmount ?? item.amount)}
                     </Text>
                   </View>
                 </View>
-                <View style={styles.amountPill}>
-                  <Text style={styles.amountText}>
-                    {fmtMoney(item.totalAmount ?? item.amount)}
+
+                {md?.workItem || hasCalc ? (
+                  <View style={styles.manpowerCalcRow}>
+                    {md?.workItem ? (
+                      <Text style={styles.manpowerWorkItem} numberOfLines={1}>
+                        {md.workItem}
+                      </Text>
+                    ) : null}
+                    {hasCalc ? (
+                      <Text style={styles.manpowerFormula}>
+                        {md.units} {md.workType === 'DAILY_WAGE' ? 'days' : 'units'} ×{' '}
+                        {fmtMoney(md.ratePerUnit)}
+                      </Text>
+                    ) : null}
+                  </View>
+                ) : null}
+
+                {pendingAmt > 0 ? (
+                  <View style={styles.paymentStatusRow}>
+                    <View style={styles.paidBadge}>
+                      <Text style={styles.paidBadgeText}>
+                        Paid: {fmtMoney(paidAmt)}
+                      </Text>
+                    </View>
+                    <View style={styles.pendingBadge}>
+                      <Text style={styles.pendingBadgeText}>
+                        Pending: {fmtMoney(pendingAmt)}
+                      </Text>
+                    </View>
+                  </View>
+                ) : null}
+
+                {item.notes ? (
+                  <Text style={styles.notesText} numberOfLines={2}>
+                    {item.notes}
                   </Text>
+                ) : null}
+
+                <View style={styles.cardActionsBar}>
+                  {pendingAmt > 0 ? (
+                    <TouchableOpacity
+                      onPress={() => handleMarkPaid(item)}
+                      activeOpacity={0.75}
+                      style={styles.settleActionBtn}
+                      disabled={isSaving}
+                    >
+                      <CheckCircle2 size={13} color={colors.success} />
+                      <Text style={styles.settleActionText}>Mark Paid</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                  <TouchableOpacity
+                    onPress={() => handleOpenEdit(item)}
+                    activeOpacity={0.75}
+                    style={styles.editActionBtn}
+                  >
+                    <Pencil size={13} color={colors.primary} />
+                    <Text style={styles.editActionText}>Edit</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setDeleteTarget(item)}
+                    activeOpacity={0.75}
+                    style={styles.deleteActionBtn}
+                  >
+                    <Trash2 size={13} color={colors.danger} />
+                    <Text style={styles.deleteActionText}>Delete</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
-
-              {item.notes ? (
-                <Text style={styles.notesText} numberOfLines={2}>
-                  {item.notes}
-                </Text>
-              ) : null}
-
-              <View style={styles.cardActionsBar}>
-                <TouchableOpacity
-                  onPress={() => handleOpenEdit(item)}
-                  activeOpacity={0.75}
-                  style={styles.editActionBtn}
-                >
-                  <Pencil size={13} color={colors.primary} />
-                  <Text style={styles.editActionText}>Edit</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setDeleteTarget(item)}
-                  activeOpacity={0.75}
-                  style={styles.deleteActionBtn}
-                >
-                  <Trash2 size={13} color={colors.danger} />
-                  <Text style={styles.deleteActionText}>Delete</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
+            );
+          }}
         />
       ) : (
         <FlatList
@@ -722,6 +1009,7 @@ export function ExpensesScreen({
                   mode,
                   categoryCode,
                   categoryName,
+                  lockedWorkType: group.workTypes?.[0],
                 })
               }
             >
@@ -732,10 +1020,37 @@ export function ExpensesScreen({
                   <Receipt size={18} color={colors.primary} />
                 )}
               </View>
-              <Text style={styles.groupListTitle} numberOfLines={1}>
-                {group.title}
-              </Text>
-              <ChevronRight size={18} color={colors.textMuted} />
+              <View style={styles.groupListInfo}>
+                <Text style={styles.groupListTitle} numberOfLines={1}>
+                  {group.title}
+                </Text>
+                <View style={styles.groupSubRow}>
+                  <Text style={styles.groupEntryCount}>
+                    {group.count} {group.count === 1 ? 'entry' : 'entries'}
+                  </Text>
+                  {isManpower &&
+                    (group.workTypes ?? []).map((wt) => (
+                      <View key={wt} style={styles.workTypePill}>
+                        <Text style={styles.workTypePillText}>
+                          {WORK_TYPE_LABELS[wt] || wt}
+                        </Text>
+                      </View>
+                    ))}
+                  {isManpower && (group.totalPending ?? 0) > 0 ? (
+                    <View style={styles.pendingBadge}>
+                      <Text style={styles.pendingBadgeText}>
+                        Pending {fmtMoney(group.totalPending)}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              </View>
+              <View style={styles.groupRightWrap}>
+                <Text style={styles.groupAmountText} numberOfLines={1}>
+                  {fmtMoney(group.totalAmount)}
+                </Text>
+                <ChevronRight size={18} color={colors.textMuted} />
+              </View>
             </TouchableOpacity>
           )}
         />
@@ -840,16 +1155,60 @@ export function ExpensesScreen({
             </View>
           ) : null}
 
+          {isManpower ? (
+            <View style={styles.sectionBlock}>
+              <Text style={styles.fieldLabel}>
+                Work Type <Text style={styles.requiredStar}>*</Text>
+              </Text>
+              <View style={styles.chipGrid}>
+                {WORK_TYPE_OPTIONS.map((opt) => {
+                  const active = workType === opt.value;
+                  return (
+                    <TouchableOpacity
+                      key={opt.value}
+                      style={[
+                        styles.chip,
+                        active && styles.chipActive,
+                        isWorkTypeLocked && !active && styles.chipDisabled,
+                      ]}
+                      onPress={() => {
+                        if (isWorkTypeLocked && !active && effectiveLockedWorkType) {
+                          popup.error(
+                            'Work Type Locked',
+                            `"${title.trim() || 'This worker'}" is already created as ${WORK_TYPE_LABELS[effectiveLockedWorkType]}. You cannot change it to ${WORK_TYPE_LABELS[opt.value]} — please create a new name for a different type.`,
+                          );
+                          return;
+                        }
+                        setWorkType(opt.value);
+                      }}
+                      activeOpacity={0.75}
+                      disabled={isSaving}
+                    >
+                      <Text
+                        style={[
+                          styles.chipText,
+                          active && styles.chipTextActive,
+                        ]}
+                      >
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          ) : null}
+
           <View style={styles.sectionBlock}>
             <Text style={styles.fieldLabel}>
-              {isManpower ? 'Worker / Purpose' : 'Title'}{' '}
+              {isManpower ? 'Worker / Contractor Name' : 'Title'}{' '}
               <Text style={styles.requiredStar}>*</Text>
             </Text>
             <BottomSheetTextInput
               style={[styles.input, isDetailMode && styles.inputLocked]}
               placeholder={
                 isManpower
-                  ? 'e.g. Packing staff daily wages'
+                  ? 'e.g. Ramesh Kumar'
                   : 'e.g. Shop rent / Electricity bill'
               }
               placeholderTextColor={colors.textMuted}
@@ -859,25 +1218,120 @@ export function ExpensesScreen({
             />
           </View>
 
-          <View style={styles.sectionBlock}>
-            <Text style={styles.fieldLabel}>
-              Amount (₹) <Text style={styles.requiredStar}>*</Text>
-            </Text>
-            <View style={styles.amountInputWrap}>
-              <View style={styles.currencyPrefix}>
-                <Text style={styles.currencySymbol}>₹</Text>
+          {isManpower ? (
+            <>
+              <View style={styles.sectionBlock}>
+                <Text style={styles.fieldLabel}>
+                  {workType === 'SALARY'
+                    ? 'Role / Designation'
+                    : workType === 'CONTRACT'
+                      ? 'Work / Item Name'
+                      : 'Work / Task'}
+                </Text>
+                <BottomSheetTextInput
+                  style={styles.input}
+                  placeholder={
+                    workType === 'SALARY'
+                      ? 'e.g. Supervisor, Driver'
+                      : workType === 'CONTRACT'
+                        ? 'e.g. Box Packing, Stitching'
+                        : 'e.g. Loading, Helper'
+                  }
+                  placeholderTextColor={colors.textMuted}
+                  value={workItem}
+                  onChangeText={setWorkItem}
+                  editable={!isSaving}
+                />
               </View>
-              <BottomSheetTextInput
-                style={styles.amountInput}
-                placeholder="0.00"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="decimal-pad"
-                value={amountText}
-                onChangeText={setAmountText}
-                editable={!isCreating}
-              />
+
+              {workType === 'CONTRACT' || workType === 'DAILY_WAGE' ? (
+                <View style={styles.twoColRow}>
+                  <View style={[styles.sectionBlock, styles.twoColItem]}>
+                    <Text style={styles.fieldLabel}>
+                      {workType === 'DAILY_WAGE' ? 'Days' : 'Units / Qty'}{' '}
+                      <Text style={styles.requiredStar}>*</Text>
+                    </Text>
+                    <BottomSheetTextInput
+                      style={styles.input}
+                      placeholder={workType === 'DAILY_WAGE' ? 'e.g. 15' : 'e.g. 500'}
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="decimal-pad"
+                      value={unitsText}
+                      onChangeText={setUnitsText}
+                      editable={!isSaving}
+                    />
+                  </View>
+
+                  <View style={[styles.sectionBlock, styles.twoColItem]}>
+                    <Text style={styles.fieldLabel}>
+                      {workType === 'DAILY_WAGE' ? 'Daily Rate (₹)' : 'Rate / Unit (₹)'}{' '}
+                      <Text style={styles.requiredStar}>*</Text>
+                    </Text>
+                    <BottomSheetTextInput
+                      style={styles.input}
+                      placeholder={workType === 'DAILY_WAGE' ? 'e.g. 500' : 'e.g. 12'}
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="decimal-pad"
+                      value={rateText}
+                      onChangeText={setRateText}
+                      editable={!isSaving}
+                    />
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.sectionBlock}>
+                  <Text style={styles.fieldLabel}>
+                    Salary Amount (₹) <Text style={styles.requiredStar}>*</Text>
+                  </Text>
+                  <View style={styles.amountInputWrap}>
+                    <View style={styles.currencyPrefix}>
+                      <Text style={styles.currencySymbol}>₹</Text>
+                    </View>
+                    <BottomSheetTextInput
+                      style={styles.amountInput}
+                      placeholder="0.00"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="decimal-pad"
+                      value={amountText}
+                      onChangeText={setAmountText}
+                      editable={!isSaving}
+                    />
+                  </View>
+                </View>
+              )}
+
+              {computedManpowerTotal > 0 ? (
+                <View style={styles.calcBanner}>
+                  <View style={styles.calcBannerCol}>
+                    <Text style={styles.calcBannerLabel}>Total Payable</Text>
+                    <Text style={styles.calcBannerVal}>
+                      {fmtMoney(computedManpowerTotal)}
+                    </Text>
+                  </View>
+                </View>
+              ) : null}
+            </>
+          ) : (
+            <View style={styles.sectionBlock}>
+              <Text style={styles.fieldLabel}>
+                Amount (₹) <Text style={styles.requiredStar}>*</Text>
+              </Text>
+              <View style={styles.amountInputWrap}>
+                <View style={styles.currencyPrefix}>
+                  <Text style={styles.currencySymbol}>₹</Text>
+                </View>
+                <BottomSheetTextInput
+                  style={styles.amountInput}
+                  placeholder="0.00"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="decimal-pad"
+                  value={amountText}
+                  onChangeText={setAmountText}
+                  editable={!isSaving}
+                />
+              </View>
             </View>
-          </View>
+          )}
 
           <View style={styles.sectionBlock}>
             <Text style={styles.fieldLabel}>Date</Text>
@@ -1034,13 +1488,17 @@ export function ExpensesScreen({
                   return null;
                 }
                 const isSelected =
-                  selectedMonth.year === pickerYear &&
-                  selectedMonth.month === monthNum;
+                  selectedMonth?.year === pickerYear &&
+                  selectedMonth?.month === monthNum;
+                const isCurrentMonth =
+                  pickerYear === now.getFullYear() &&
+                  monthNum === now.getMonth() + 1;
                 return (
                   <TouchableOpacity
                     key={mName}
                     style={[
                       styles.monthCell,
+                      isCurrentMonth && !isSelected && styles.monthCellCurrent,
                       isSelected && styles.monthCellActive,
                     ]}
                     activeOpacity={0.75}
@@ -1052,6 +1510,9 @@ export function ExpensesScreen({
                     <Text
                       style={[
                         styles.monthCellText,
+                        isCurrentMonth &&
+                          !isSelected &&
+                          styles.monthCellTextCurrent,
                         isSelected && styles.monthCellTextActive,
                       ]}
                     >
@@ -1060,6 +1521,56 @@ export function ExpensesScreen({
                   </TouchableOpacity>
                 );
               })}
+            </View>
+
+            <View style={styles.footerActionsRow}>
+              <TouchableOpacity
+                style={[
+                  styles.allTimeBtn,
+                  styles.footerActionBtn,
+                  selectedMonth?.year === pickerYear &&
+                    selectedMonth?.month === null &&
+                    styles.allTimeBtnActive,
+                ]}
+                activeOpacity={0.75}
+                onPress={() => {
+                  setSelectedMonth({ year: pickerYear, month: null });
+                  setFilterModalOpen(false);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.allTimeBtnText,
+                    selectedMonth?.year === pickerYear &&
+                      selectedMonth?.month === null &&
+                      styles.allTimeBtnTextActive,
+                  ]}
+                >
+                  Full Year {pickerYear}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.allTimeBtn,
+                  styles.footerActionBtn,
+                  selectedMonth === null && styles.allTimeBtnActive,
+                ]}
+                activeOpacity={0.75}
+                onPress={() => {
+                  setSelectedMonth(null);
+                  setFilterModalOpen(false);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.allTimeBtnText,
+                    selectedMonth === null && styles.allTimeBtnTextActive,
+                  ]}
+                >
+                  All Time
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -1198,6 +1709,163 @@ const styles = StyleSheet.create({
   mt6: {
     marginTop: 6,
   },
+  pendingMetricVal: {
+    color: colors.warning,
+  },
+  filterChipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: spacing.sm + 2,
+    paddingRight: spacing.md,
+  },
+  filterChip: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 9,
+    borderRadius: radius.full,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSubtle,
+  },
+  filterChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  filterChipText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: colors.textSecondary,
+  },
+  filterChipTextActive: {
+    color: colors.surface,
+  },
+  groupListInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  groupSubRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 6,
+  },
+  badgeWrapRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 6,
+  },
+  workTypePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+    backgroundColor: colors.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  workTypePillText: {
+    fontSize: 11,
+    fontWeight: fontWeight.semibold,
+    color: colors.textSecondary,
+  },
+  manpowerCalcRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surfaceSubtle,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 6,
+    gap: spacing.sm,
+  },
+  manpowerWorkItem: {
+    flex: 1,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: colors.textPrimary,
+  },
+  manpowerFormula: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
+  },
+  paymentStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  paidBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+    backgroundColor: '#ECFDF5',
+  },
+  paidBadgeText: {
+    fontSize: 11,
+    fontWeight: fontWeight.semibold,
+    color: colors.success,
+  },
+  pendingBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+    backgroundColor: '#FEF3C7',
+  },
+  pendingBadgeText: {
+    fontSize: 11,
+    fontWeight: fontWeight.semibold,
+    color: '#B45309',
+  },
+  settleActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: radius.md,
+    backgroundColor: '#ECFDF5',
+  },
+  settleActionText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: colors.success,
+  },
+  twoColRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  twoColItem: {
+    flex: 1,
+  },
+  calcBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  calcBannerCol: {
+    gap: 2,
+  },
+  calcBannerColRight: {
+    alignItems: 'flex-end',
+    gap: 2,
+  },
+  calcBannerLabel: {
+    fontSize: 11,
+    fontWeight: fontWeight.medium,
+    color: colors.textSecondary,
+  },
+  calcBannerVal: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
+  },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1287,9 +1955,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   groupListTitle: {
-    flex: 1,
     fontSize: fontSize.md,
     fontWeight: fontWeight.semibold,
+    color: colors.textPrimary,
+  },
+  groupEntryCount: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.medium,
+    color: colors.textMuted,
+  },
+  groupRightWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  groupAmountText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
     color: colors.textPrimary,
   },
   amountText: {
@@ -1451,6 +2133,9 @@ const styles = StyleSheet.create({
   chipActive: {
     backgroundColor: colors.primarySoft,
     borderColor: colors.primary,
+  },
+  chipDisabled: {
+    opacity: 0.45,
   },
   chipText: {
     fontSize: fontSize.xs,
@@ -1642,10 +2327,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
+  monthCellCurrent: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary,
+  },
   monthCellText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
     color: colors.textPrimary,
+  },
+  monthCellTextCurrent: {
+    color: colors.primary,
   },
   monthCellTextActive: {
     color: colors.surface,
@@ -1669,5 +2361,34 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
     color: colors.textSecondary,
+  },
+  footerActionsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  footerActionBtn: {
+    flex: 1,
+  },
+  allTimeBtn: {
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  allTimeBtnActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  allTimeBtnText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  allTimeBtnTextActive: {
+    color: colors.surface,
   },
 });

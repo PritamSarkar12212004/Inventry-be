@@ -2,6 +2,7 @@ export {
   FINANCIAL_QUERY_KEYS,
   useCustomerOutstanding,
   useFinancialOverview,
+  useInfiniteFinancialTransactions,
   usePurchaseExpenseSummary,
   useProductExpenses,
   useInfiniteExpenses,

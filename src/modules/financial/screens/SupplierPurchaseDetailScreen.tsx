@@ -9,10 +9,15 @@ import {
   View,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { FileText, Phone, Receipt, Search, X } from 'lucide-react-native';
+import { Calendar, FileText, Phone, Receipt, Search, X } from 'lucide-react-native';
 import type { RootStackParamList } from '../../../core/navigation/types';
 import { colors, fontSize, fontWeight, radius, spacing } from '../../../core/theme';
 import { inventoryStyles } from '../../inventory/styles';
+import {
+  MonthYearPickerModal,
+  getMonthRange,
+  type SelectedMonth,
+} from '../components';
 import type {
   ExpenseRecordDetail,
   PurchaseEntryDetailItem,
@@ -38,22 +43,68 @@ function formatDate(dateStr?: string): string {
   });
 }
 
+function matchesSelectedMonth(
+  dateStr: string | undefined,
+  selectedMonth: SelectedMonth,
+): boolean {
+  if (!selectedMonth) return true;
+  if (!dateStr) return false;
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return false;
+  if (selectedMonth.month === null) {
+    return d.getFullYear() === selectedMonth.year;
+  }
+  return (
+    d.getFullYear() === selectedMonth.year &&
+    d.getMonth() === selectedMonth.month
+  );
+}
+
 export function SupplierPurchaseDetailScreen({ route, navigation }: Props) {
   const { title, mode, supplier, category, purchases, summaryStats } =
     route.params;
   const [search, setSearch] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState<SelectedMonth>(null);
+  const [filterModalOpen, setFilterModalOpen] = useState(false);
+
+  const periodLabel = useMemo(
+    () =>
+      selectedMonth
+        ? getMonthRange(selectedMonth.year, selectedMonth.month).label
+        : 'All Time',
+    [selectedMonth],
+  );
 
   useLayoutEffect(() => {
-    navigation.setOptions({ title });
-  }, [navigation, title]);
+    navigation.setOptions({
+      title,
+      headerRight: () => (
+        <TouchableOpacity
+          style={styles.headerCalBtn}
+          activeOpacity={0.75}
+          onPress={() => setFilterModalOpen(true)}
+        >
+          <Calendar size={16} color={colors.textPrimary} />
+          <Text style={styles.headerCalText}>{periodLabel}</Text>
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, title, periodLabel]);
 
   const query = search.trim().toLowerCase();
 
-  const filteredPurchases = useMemo<PurchaseEntryDetailItem[]>(() => {
+  const dateFilteredPurchases = useMemo<PurchaseEntryDetailItem[]>(() => {
     const list =
       mode === 'SUPPLIER' ? (supplier?.entries ?? []) : (purchases ?? []);
-    if (!query) return list;
-    return list.filter(
+    if (!selectedMonth) return list;
+    return list.filter((entry) =>
+      matchesSelectedMonth(entry.entryDate, selectedMonth),
+    );
+  }, [mode, supplier?.entries, purchases, selectedMonth]);
+
+  const filteredPurchases = useMemo<PurchaseEntryDetailItem[]>(() => {
+    if (!query) return dateFilteredPurchases;
+    return dateFilteredPurchases.filter(
       (entry) =>
         entry.entryNumber.toLowerCase().includes(query) ||
         entry.supplierName.toLowerCase().includes(query) ||
@@ -61,21 +112,35 @@ export function SupplierPurchaseDetailScreen({ route, navigation }: Props) {
           it.productName.toLowerCase().includes(query),
         ),
     );
-  }, [mode, supplier?.entries, purchases, query]);
+  }, [dateFilteredPurchases, query]);
+
+  const dateFilteredExpenseRecords = useMemo<ExpenseRecordDetail[]>(() => {
+    const list = category?.records ?? [];
+    if (!selectedMonth) return list;
+    return list.filter((rec) => matchesSelectedMonth(rec.date, selectedMonth));
+  }, [category?.records, selectedMonth]);
 
   const filteredExpenseRecords = useMemo<ExpenseRecordDetail[]>(() => {
-    const list = category?.records ?? [];
-    if (!query) return list;
-    return list.filter(
+    if (!query) return dateFilteredExpenseRecords;
+    return dateFilteredExpenseRecords.filter(
       (rec) =>
         rec.title.toLowerCase().includes(query) ||
         rec.referenceNumber.toLowerCase().includes(query) ||
         rec.subtitle.toLowerCase().includes(query),
     );
-  }, [category?.records, query]);
+  }, [dateFilteredExpenseRecords, query]);
 
   const headerCard = () => {
     if (mode === 'EXPENSE_CATEGORY' && category) {
+      const catCount = selectedMonth
+        ? dateFilteredExpenseRecords.length
+        : category.count;
+      const catTotal = selectedMonth
+        ? dateFilteredExpenseRecords.reduce(
+            (sum, r) => sum + Number(r.totalAmount || 0),
+            0,
+          )
+        : category.totalAmount;
       return (
         <View style={styles.summaryCard}>
           <View style={styles.summaryTop}>
@@ -85,35 +150,52 @@ export function SupplierPurchaseDetailScreen({ route, navigation }: Props) {
             <View style={styles.summaryTopMeta}>
               <Text style={styles.summaryTitle}>{category.label}</Text>
               <Text style={styles.summarySub}>
-                {category.count} {category.count === 1 ? 'record' : 'records'}
+                {catCount} {catCount === 1 ? 'record' : 'records'}
               </Text>
             </View>
             <Text style={styles.summaryBigAmount}>
-              {fmtMoney(category.totalAmount)}
+              {fmtMoney(catTotal)}
             </Text>
           </View>
         </View>
       );
     }
 
-    const totalAmt =
-      mode === 'SUPPLIER'
+    const totalAmt = selectedMonth
+      ? dateFilteredPurchases.reduce(
+          (sum, e) => sum + Number(e.totalPurchaseCost || 0),
+          0,
+        )
+      : mode === 'SUPPLIER'
         ? (supplier?.totalPurchaseCost ?? 0)
         : (summaryStats?.totalAmount ?? 0);
-    const matCost =
-      mode === 'SUPPLIER'
+    const matCost = selectedMonth
+      ? dateFilteredPurchases.reduce(
+          (sum, e) => sum + Number(e.materialCost || 0),
+          0,
+        )
+      : mode === 'SUPPLIER'
         ? (supplier?.materialCost ?? 0)
         : (summaryStats?.materialCost ?? 0);
-    const transCost =
-      mode === 'SUPPLIER'
+    const transCost = selectedMonth
+      ? dateFilteredPurchases.reduce(
+          (sum, e) => sum + Number(e.transportCost || 0),
+          0,
+        )
+      : mode === 'SUPPLIER'
         ? (supplier?.transportCost ?? 0)
         : (summaryStats?.transportCost ?? 0);
-    const othCost =
-      mode === 'SUPPLIER'
+    const othCost = selectedMonth
+      ? dateFilteredPurchases.reduce(
+          (sum, e) => sum + Number(e.otherCost || 0),
+          0,
+        )
+      : mode === 'SUPPLIER'
         ? (supplier?.otherCost ?? 0)
         : (summaryStats?.otherCost ?? 0);
-    const count =
-      mode === 'SUPPLIER'
+    const count = selectedMonth
+      ? dateFilteredPurchases.length
+      : mode === 'SUPPLIER'
         ? (supplier?.entryCount ?? 0)
         : (summaryStats?.count ?? filteredPurchases.length);
 
@@ -295,6 +377,12 @@ export function SupplierPurchaseDetailScreen({ route, navigation }: Props) {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         />
+        <MonthYearPickerModal
+          visible={filterModalOpen}
+          selectedMonth={selectedMonth}
+          onSelect={setSelectedMonth}
+          onClose={() => setFilterModalOpen(false)}
+        />
       </View>
     );
   }
@@ -315,6 +403,12 @@ export function SupplierPurchaseDetailScreen({ route, navigation }: Props) {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+      />
+      <MonthYearPickerModal
+        visible={filterModalOpen}
+        selectedMonth={selectedMonth}
+        onSelect={setSelectedMonth}
+        onClose={() => setFilterModalOpen(false)}
       />
     </View>
   );
@@ -565,5 +659,21 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
     marginTop: spacing.sm,
+  },
+  headerCalBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 5,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.textPrimary,
+  },
+  headerCalText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
   },
 });

@@ -1,6 +1,14 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   FlatList,
+  Modal,
+  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
@@ -20,6 +28,7 @@ import {
 } from '@gorhom/bottom-sheet';
 import {
   Calendar,
+  ChevronLeft,
   ChevronRight,
   FolderPlus,
   IndianRupee,
@@ -55,6 +64,38 @@ import type { ExpenseCategoryOverview } from '../types';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
+const MONTH_NAMES = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
+function getMonthRange(year: number, month: number | null) {
+  if (month === null) {
+    return {
+      startDate: `${year}-01-01`,
+      endDate: `${year}-12-31`,
+      label: `Year ${year}`,
+    };
+  }
+  const lastDay = new Date(year, month, 0).getDate();
+  const mm = String(month).padStart(2, '0');
+  return {
+    startDate: `${year}-${mm}-01`,
+    endDate: `${year}-${mm}-${String(lastDay).padStart(2, '0')}`,
+    label: `${MONTH_NAMES[month - 1] ?? ''} ${year}`,
+  };
+}
+
 function fmtMoney(val?: number): string {
   return `₹${Number(val || 0).toLocaleString('en-IN', {
     maximumFractionDigits: 0,
@@ -66,6 +107,43 @@ export function GeneralExpensesScreen() {
   const insets = useSafeAreaInsets();
   const addSheetRef = useRef<BottomSheetModal>(null);
   const snapPoints = useMemo(() => ['38%', '55%'], []);
+
+  const now = useMemo(() => new Date(), []);
+  const [selectedMonth, setSelectedMonth] = useState<{
+    year: number;
+    month: number | null;
+  } | null>(() => ({ year: now.getFullYear(), month: now.getMonth() + 1 }));
+  const [pickerYear, setPickerYear] = useState<number>(() =>
+    now.getFullYear(),
+  );
+  const [filterModalOpen, setFilterModalOpen] = useState(false);
+
+  const monthRange = useMemo(
+    () =>
+      selectedMonth
+        ? getMonthRange(selectedMonth.year, selectedMonth.month)
+        : null,
+    [selectedMonth],
+  );
+  const periodLabel = monthRange?.label ?? 'All Time';
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          style={styles.headerCalBtn}
+          activeOpacity={0.75}
+          onPress={() => {
+            setPickerYear(selectedMonth?.year ?? now.getFullYear());
+            setFilterModalOpen(true);
+          }}
+        >
+          <Calendar size={17} color={colors.textPrimary} />
+          <Text style={styles.headerCalText}>{periodLabel}</Text>
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, periodLabel, selectedMonth, now]);
 
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search.trim(), 350);
@@ -79,15 +157,28 @@ export function GeneralExpensesScreen() {
     hasNextPage,
     fetchNextPage,
     refetch,
-  } = useInfiniteExpenseCategories(debouncedSearch || undefined);
+  } = useInfiniteExpenseCategories(
+    debouncedSearch || undefined,
+    monthRange?.startDate,
+    monthRange?.endDate,
+  );
   const { mutate: createCategory, isPending: isCreating } =
     useCreateExpenseCategory();
 
-  const categories = useMemo(
-    () => data?.pages.flatMap((p) => p.items) ?? [],
-    [data],
-  );
+  const categories = useMemo(() => {
+    const all = data?.pages.flatMap((p) => p.items) ?? [];
+    if (!selectedMonth) return all;
+    return all.filter((cat) => Number(cat.expenseCount || 0) > 0);
+  }, [data, selectedMonth]);
   const lastOverviewRef = useRef<ExpenseCategoryOverview | undefined>(undefined);
+  const lastOverviewMonthKeyRef = useRef<string>('ALL');
+  const currentMonthKey = selectedMonth
+    ? `${selectedMonth.year}-${selectedMonth.month}`
+    : 'ALL';
+  if (lastOverviewMonthKeyRef.current !== currentMonthKey) {
+    lastOverviewMonthKeyRef.current = currentMonthKey;
+    lastOverviewRef.current = undefined;
+  }
   if (data?.pages?.[0]?.overview) {
     lastOverviewRef.current = data.pages[0].overview;
   }
@@ -414,6 +505,152 @@ export function GeneralExpensesScreen() {
           </View>
         </BottomSheetScrollView>
       </BottomSheetModal>
+
+      {/* Month & Year Picker Modal */}
+      <Modal
+        visible={filterModalOpen}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setFilterModalOpen(false)}
+      >
+        <View style={styles.filterModalBackdrop}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setFilterModalOpen(false)}
+          />
+          <View style={styles.filterModalCard}>
+            <View style={styles.filterModalHeader}>
+              <Text style={styles.filterModalTitle}>Select Month</Text>
+              <TouchableOpacity
+                onPress={() => setFilterModalOpen(false)}
+                hitSlop={8}
+                style={styles.closeBtn}
+              >
+                <X size={18} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.yearSwitchRow}>
+              <TouchableOpacity
+                style={styles.yearArrowBtn}
+                onPress={() => setPickerYear((y) => y - 1)}
+                activeOpacity={0.75}
+              >
+                <ChevronLeft size={18} color={colors.textPrimary} />
+              </TouchableOpacity>
+              <Text style={styles.yearText}>{pickerYear}</Text>
+              {pickerYear < now.getFullYear() ? (
+                <TouchableOpacity
+                  style={styles.yearArrowBtn}
+                  onPress={() => setPickerYear((y) => y + 1)}
+                  activeOpacity={0.75}
+                >
+                  <ChevronRight size={18} color={colors.textPrimary} />
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.yearArrowPlaceholder} />
+              )}
+            </View>
+
+            <View style={styles.monthGrid}>
+              {MONTH_NAMES.map((mName, idx) => {
+                const monthNum = idx + 1;
+                if (
+                  pickerYear > now.getFullYear() ||
+                  (pickerYear === now.getFullYear() &&
+                    monthNum > now.getMonth() + 1)
+                ) {
+                  return null;
+                }
+                const isSelected =
+                  selectedMonth?.year === pickerYear &&
+                  selectedMonth?.month === monthNum;
+                const isCurrentMonth =
+                  pickerYear === now.getFullYear() &&
+                  monthNum === now.getMonth() + 1;
+                return (
+                  <TouchableOpacity
+                    key={mName}
+                    style={[
+                      styles.monthCell,
+                      isCurrentMonth && !isSelected && styles.monthCellCurrent,
+                      isSelected && styles.monthCellActive,
+                    ]}
+                    activeOpacity={0.75}
+                    onPress={() => {
+                      setSelectedMonth({ year: pickerYear, month: monthNum });
+                      setFilterModalOpen(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.monthCellText,
+                        isCurrentMonth &&
+                          !isSelected &&
+                          styles.monthCellTextCurrent,
+                        isSelected && styles.monthCellTextActive,
+                      ]}
+                    >
+                      {mName}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <View style={styles.footerActionsRow}>
+              <TouchableOpacity
+                style={[
+                  styles.allTimeBtn,
+                  styles.footerActionBtn,
+                  selectedMonth?.year === pickerYear &&
+                    selectedMonth?.month === null &&
+                    styles.allTimeBtnActive,
+                ]}
+                activeOpacity={0.75}
+                onPress={() => {
+                  setSelectedMonth({ year: pickerYear, month: null });
+                  setFilterModalOpen(false);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.allTimeBtnText,
+                    selectedMonth?.year === pickerYear &&
+                      selectedMonth?.month === null &&
+                      styles.allTimeBtnTextActive,
+                  ]}
+                >
+                  Full Year {pickerYear}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.allTimeBtn,
+                  styles.footerActionBtn,
+                  selectedMonth === null && styles.allTimeBtnActive,
+                ]}
+                activeOpacity={0.75}
+                onPress={() => {
+                  setSelectedMonth(null);
+                  setFilterModalOpen(false);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.allTimeBtnText,
+                    selectedMonth === null && styles.allTimeBtnTextActive,
+                  ]}
+                >
+                  All Time
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -743,5 +980,144 @@ const styles = StyleSheet.create({
   },
   saveWrap: {
     marginTop: spacing.sm,
+  },
+  headerCalBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.textPrimary,
+  },
+  headerCalText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  filterModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  filterModalCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.floating,
+  },
+  filterModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs,
+  },
+  filterModalTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  yearSwitchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surfaceSubtle,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs + 2,
+    marginTop: spacing.sm,
+  },
+  yearArrowBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  yearArrowPlaceholder: {
+    width: 34,
+    height: 34,
+  },
+  yearText: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  monthGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: spacing.md,
+  },
+  monthCell: {
+    width: '31%',
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  monthCellActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  monthCellCurrent: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary,
+  },
+  monthCellText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.textPrimary,
+  },
+  monthCellTextCurrent: {
+    color: colors.primary,
+  },
+  monthCellTextActive: {
+    color: colors.surface,
+  },
+  footerActionsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  footerActionBtn: {
+    flex: 1,
+  },
+  allTimeBtn: {
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  allTimeBtnActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  allTimeBtnText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  allTimeBtnTextActive: {
+    color: colors.surface,
   },
 });

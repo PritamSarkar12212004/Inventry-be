@@ -11,6 +11,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
+  Calendar,
   ChevronRight,
   Phone,
   Search,
@@ -21,7 +22,12 @@ import type { RootStackParamList } from '../../../core/navigation/types';
 import { useDebounce } from '../../../core/hooks/useDebounce';
 import { colors, fontSize, fontWeight, radius, spacing } from '../../../core/theme';
 import { inventoryStyles } from '../../inventory/styles';
-import { SupplierOverviewBanner } from '../components';
+import {
+  MonthYearPickerModal,
+  SupplierOverviewBanner,
+  getMonthRange,
+  type SelectedMonth,
+} from '../components';
 import { usePurchaseExpenseSummary } from '../hooks';
 import { SuppliersPurchasesSkeleton } from '../skeletons';
 import type { SupplierSummaryItem } from '../types';
@@ -54,9 +60,22 @@ export function SuppliersPurchasesScreen() {
   const navigation = useNavigation<NavProp>();
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search.trim(), 300);
+  const [selectedMonth, setSelectedMonth] = useState<SelectedMonth>(null);
+  const [filterModalOpen, setFilterModalOpen] = useState(false);
+
+  const monthRange = useMemo(
+    () =>
+      selectedMonth
+        ? getMonthRange(selectedMonth.year, selectedMonth.month)
+        : null,
+    [selectedMonth],
+  );
+  const periodLabel = monthRange?.label ?? 'All Time';
 
   const { data, isLoading, isRefetching, refetch } = usePurchaseExpenseSummary(
     debouncedSearch || undefined,
+    monthRange?.startDate,
+    monthRange?.endDate,
   );
 
   const summary = data?.summary;
@@ -118,20 +137,32 @@ export function SuppliersPurchasesScreen() {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.searchBox}>
-        <Search size={17} color={colors.textMuted} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search supplier name or phone..."
-          placeholderTextColor={colors.textMuted}
-          value={search}
-          onChangeText={setSearch}
-        />
-        {search.length > 0 ? (
-          <TouchableOpacity onPress={() => setSearch('')} hitSlop={8}>
-            <X size={16} color={colors.textMuted} />
-          </TouchableOpacity>
-        ) : null}
+      <View style={styles.searchRow}>
+        <View style={styles.searchBox}>
+          <Search size={17} color={colors.textMuted} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search supplier name or phone..."
+            placeholderTextColor={colors.textMuted}
+            value={search}
+            onChangeText={setSearch}
+          />
+          {search.length > 0 ? (
+            <TouchableOpacity onPress={() => setSearch('')} hitSlop={8}>
+              <X size={16} color={colors.textMuted} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+        <TouchableOpacity
+          style={styles.dateSelectorBtn}
+          activeOpacity={0.75}
+          onPress={() => setFilterModalOpen(true)}
+        >
+          <Calendar size={16} color={colors.textPrimary} />
+          <Text style={styles.dateSelectorText} numberOfLines={1}>
+            {periodLabel}
+          </Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -233,6 +264,13 @@ export function SuppliersPurchasesScreen() {
             tintColor={colors.primary}
           />
         }
+      />
+
+      <MonthYearPickerModal
+        visible={filterModalOpen}
+        selectedMonth={selectedMonth}
+        onSelect={setSelectedMonth}
+        onClose={() => setFilterModalOpen(false)}
       />
     </View>
   );
@@ -411,7 +449,14 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     color: colors.textMuted,
   },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
   searchBox: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
@@ -421,7 +466,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     height: 44,
     gap: spacing.sm,
-    marginBottom: spacing.md,
+  },
+  dateSelectorBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 44,
+    paddingHorizontal: spacing.sm + 2,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  dateSelectorText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
   },
   searchInput: {
     flex: 1,

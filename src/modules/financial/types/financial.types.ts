@@ -16,10 +16,65 @@ export type FinancialOverviewData = {
   totalPurchaseExpenses?: number;
   totalExpenseCount: number;
   totalExpenses: number;
+  totalGeneralExpenses?: number;
+  generalExpenseCount?: number;
+  totalManpowerExpenses?: number;
+  manpowerExpenseCount?: number;
   totalInHouseExpenses?: number;
   totalAllExpenses?: number;
   totalStockValue: number;
   netCashflow: number;
+};
+
+export type FinancialTransactionType =
+  | 'ALL'
+  | 'IN'
+  | 'OUT'
+  | 'SALES_PAYMENT'
+  | 'PURCHASE'
+  | 'GENERAL_EXPENSE'
+  | 'MANPOWER';
+
+export type FinancialTransactionItem = {
+  id: string;
+  direction: 'IN' | 'OUT';
+  type: 'SALES_PAYMENT' | 'PURCHASE' | 'GENERAL_EXPENSE' | 'MANPOWER';
+  title: string;
+  subtitle: string;
+  referenceNumber: string;
+  paymentMode: string;
+  amount: number;
+  date: string;
+  orderId?: string;
+  category?: string;
+  notes?: string;
+};
+
+export type FinancialPaymentModeStat = {
+  mode: string;
+  inAmount: number;
+  outAmount: number;
+  count: number;
+};
+
+export type FinancialTransactionsResponse = {
+  summary: {
+    totalIn: number;
+    totalOut: number;
+    netFlow: number;
+    inCount: number;
+    outCount: number;
+    totalCount: number;
+    byPaymentMode: FinancialPaymentModeStat[];
+  };
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasMore: boolean;
+  };
+  transactions: FinancialTransactionItem[];
 };
 
 export type ExpenseCategory =
@@ -69,6 +124,17 @@ export type CreateExpenseCategoryPayload = {
   description?: string;
 };
 
+export type ManpowerWorkType = 'CONTRACT' | 'SALARY' | 'DAILY_WAGE';
+
+export type ManpowerDetails = {
+  workType?: ManpowerWorkType;
+  workItem?: string;
+  units?: number;
+  ratePerUnit?: number;
+  paidAmount?: number;
+  pendingAmount?: number;
+};
+
 export type ExpenseLineItem = {
   key: string;
   amount: number;
@@ -87,6 +153,7 @@ export type ExpenseItem = {
   product?: string | null;
   productName?: string | null;
   lineItems?: ExpenseLineItem[];
+  manpowerDetails?: ManpowerDetails | null;
 };
 
 export type ExpenseListResponse = {
@@ -94,6 +161,8 @@ export type ExpenseListResponse = {
   totals?: {
     amount: number;
     totalAmount: number;
+    paidAmount?: number;
+    pendingAmount?: number;
   };
   pagination?: PaginationMeta;
 };
@@ -103,6 +172,9 @@ export type ExpenseTitleItem = {
   title: string;
   count: number;
   totalAmount: number;
+  totalPaid?: number;
+  totalPending?: number;
+  workTypes?: ManpowerWorkType[];
   latestDate?: string;
 };
 
@@ -110,6 +182,8 @@ export type ExpenseTitleListResponse = {
   items: ExpenseTitleItem[];
   summary?: {
     totalAmount: number;
+    totalPaid?: number;
+    totalPending?: number;
     totalEntries: number;
     totalItems: number;
     thisMonthAmount?: number;
@@ -117,6 +191,7 @@ export type ExpenseTitleListResponse = {
       title: string;
       totalAmount: number;
     } | null;
+    availableWorkTypes?: ManpowerWorkType[];
   };
   pagination?: PaginationMeta;
 };
@@ -130,6 +205,7 @@ export type CreateExpensePayload = {
   productId?: string;
   productName?: string;
   lineItems?: ExpenseLineItem[];
+  manpowerDetails?: ManpowerDetails;
 };
 
 export type CustomerOutstandingItem = {

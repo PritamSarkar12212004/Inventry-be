@@ -26,6 +26,8 @@ export function useInfiniteSalesOrders(
   sortBy?: OrderSortBy,
   customerId?: string,
   pendingOnly?: boolean,
+  startDate?: string,
+  endDate?: string,
 ) {
   return useInfiniteQuery({
     queryKey: [
@@ -36,6 +38,8 @@ export function useInfiniteSalesOrders(
       sortBy,
       customerId,
       Boolean(pendingOnly),
+      startDate,
+      endDate,
     ] as const,
     initialPageParam: 1,
     queryFn: async ({ pageParam }) => {
@@ -47,6 +51,8 @@ export function useInfiniteSalesOrders(
         customerId: customerId || undefined,
         pendingOnly: pendingOnly ? true : undefined,
         sortBy: sortBy && sortBy !== 'DATE_DESC' ? sortBy : undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
       });
       return {
         items: res.data?.items ?? [],
