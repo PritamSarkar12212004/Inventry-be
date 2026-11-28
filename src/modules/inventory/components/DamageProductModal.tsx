@@ -1,19 +1,13 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import {
-  Animated,
-  KeyboardAvoidingView,
-  Modal,
-  PanResponder,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+  BottomSheetBackdrop,
+  BottomSheetModal,
+  BottomSheetScrollView,
+  BottomSheetTextInput,
+  type BottomSheetBackdropProps,
+} from '@gorhom/bottom-sheet';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ShieldAlert, X } from 'lucide-react-native';
 import type { AxiosError } from 'axios';
 import { popup } from '../../../core/store/popupStore';
@@ -45,72 +39,46 @@ export function DamageProductModal({
   unit,
   onClose,
 }: DamageProductModalProps) {
+  const insets = useSafeAreaInsets();
+  const sheetRef = useRef<BottomSheetModal>(null);
+  const snapPoints = useMemo(() => ['58%', '78%'], []);
+
   const [quantity, setQuantity] = useState('');
   const [reason, setReason] = useState('');
   const [errorText, setErrorText] = useState('');
   const { mutate: reportDamage, isPending } = useReportDamage();
 
-  const handleClose = () => {
+  useEffect(() => {
+    if (visible) {
+      sheetRef.current?.present();
+    } else {
+      sheetRef.current?.dismiss();
+    }
+  }, [visible]);
+
+  const resetAndClose = useCallback(() => {
     setQuantity('');
     setReason('');
     setErrorText('');
     onClose();
-  };
+  }, [onClose]);
 
-  const translateY = useRef(new Animated.Value(0)).current;
-  const scrollOffsetY = useRef(0);
-  const onCloseRef = useRef(handleClose);
+  const handleClose = useCallback(() => {
+    sheetRef.current?.dismiss();
+  }, []);
 
-  useEffect(() => {
-    onCloseRef.current = handleClose;
-  });
-
-  useEffect(() => {
-    if (visible) {
-      translateY.setValue(0);
-      scrollOffsetY.current = 0;
-    }
-  }, [visible, translateY]);
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, gesture) =>
-        scrollOffsetY.current <= 0 &&
-        gesture.dy > 8 &&
-        Math.abs(gesture.dy) > Math.abs(gesture.dx),
-      onPanResponderMove: (_, gesture) => {
-        if (gesture.dy > 0) {
-          translateY.setValue(gesture.dy);
-        }
-      },
-      onPanResponderRelease: (_, gesture) => {
-        if (gesture.dy > 110 || gesture.vy > 0.8) {
-          Animated.timing(translateY, {
-            toValue: 600,
-            duration: 180,
-            useNativeDriver: true,
-          }).start(() => {
-            onCloseRef.current();
-            translateY.setValue(0);
-          });
-        } else {
-          Animated.spring(translateY, {
-            toValue: 0,
-            useNativeDriver: true,
-            bounciness: 4,
-          }).start();
-        }
-      },
-      onPanResponderTerminate: () => {
-        Animated.spring(translateY, {
-          toValue: 0,
-          useNativeDriver: true,
-          bounciness: 4,
-        }).start();
-      },
-    }),
-  ).current;
+  const renderBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        opacity={0.48}
+        pressBehavior="close"
+      />
+    ),
+    [],
+  );
 
   const handleConfirm = () => {
     if (isPending) return;
@@ -155,146 +123,151 @@ export function DamageProductModal({
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={handleClose}
+    <BottomSheetModal
+      ref={sheetRef}
+      snapPoints={snapPoints}
+      enablePanDownToClose
+      onDismiss={resetAndClose}
+      backdropComponent={renderBackdrop}
+      keyboardBehavior="interactive"
+      keyboardBlurBehavior="restore"
+      android_keyboardInputMode="adjustResize"
+      handleIndicatorStyle={styles.handleIndicator}
+      backgroundStyle={styles.sheetBg}
     >
-      <KeyboardAvoidingView
-        style={styles.backdrop}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      <BottomSheetScrollView
+        contentContainerStyle={[
+          styles.body,
+          { paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.md },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <Pressable style={styles.backdropDismiss} onPress={handleClose} />
-        <Animated.View
-          style={[styles.sheet, { transform: [{ translateY }] }]}
-          {...panResponder.panHandlers}
-        >
-          <View>
-            <View style={styles.dragHandle} />
-
-            <View style={styles.header}>
-              <View style={styles.headerLeft}>
-                <View style={styles.iconCircle}>
-                  <ShieldAlert size={18} color={colors.danger} />
-                </View>
-                <View style={styles.headerMeta}>
-                  <Text style={styles.title}>Report Damaged Stock</Text>
-                  <Text style={styles.subtitle} numberOfLines={1}>
-                    {productName}
-                  </Text>
-                </View>
-              </View>
-              <TouchableOpacity
-                style={styles.closeBtn}
-                onPress={handleClose}
-                hitSlop={8}
-              >
-                <X size={19} color={colors.textSecondary} />
-              </TouchableOpacity>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <View style={styles.iconCircle}>
+              <ShieldAlert size={18} color={colors.danger} />
             </View>
-          </View>
-
-          <ScrollView
-            contentContainerStyle={styles.body}
-            keyboardShouldPersistTaps="handled"
-            automaticallyAdjustKeyboardInsets
-            showsVerticalScrollIndicator={false}
-            onScroll={(e) => {
-              scrollOffsetY.current = e.nativeEvent.contentOffset.y;
-            }}
-            scrollEventThrottle={16}
-          >
-            <View style={styles.availBar}>
-              <Text style={styles.availLabel}>Available Saleable Stock</Text>
-              <Text style={styles.availVal}>
-                {availableStock} {unit}
+            <View style={styles.headerMeta}>
+              <Text style={styles.title}>Report Damaged Stock</Text>
+              <Text style={styles.subtitle} numberOfLines={1}>
+                {productName}
               </Text>
             </View>
+          </View>
+          <TouchableOpacity
+            style={styles.closeBtn}
+            onPress={handleClose}
+            hitSlop={8}
+            activeOpacity={0.75}
+          >
+            <X size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
 
-            <Text style={styles.label}>Damaged Quantity ({unit}) *</Text>
-            <TextInput
-              style={[styles.input, errorText ? styles.inputError : null]}
-              placeholder={`Enter damaged ${unit.toLowerCase()}...`}
-              placeholderTextColor={colors.textMuted}
-              keyboardType="numeric"
-              value={quantity}
-              onChangeText={(v) => {
-                setQuantity(v.replace(/[^0-9.]/g, ''));
-                if (errorText) setErrorText('');
-              }}
-            />
-            {errorText ? (
-              <Text style={styles.errorText}>{errorText}</Text>
-            ) : null}
+        {/* Available Stock Info Banner */}
+        <View style={styles.availBanner}>
+          <Text style={styles.availLabel}>Available Stock</Text>
+          <Text style={styles.availVal}>
+            {availableStock} {unit}
+          </Text>
+        </View>
 
-            <Text style={styles.label}>Reason / Remarks (Optional)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. Broken during handling / water damage..."
-              placeholderTextColor={colors.textMuted}
-              value={reason}
-              onChangeText={setReason}
-            />
-          </ScrollView>
+        {/* Quantity Input */}
+        <View style={styles.fieldGroup}>
+          <Text style={styles.label}>
+            Damaged Quantity ({unit}) <Text style={styles.req}>*</Text>
+          </Text>
+          <BottomSheetTextInput
+            style={styles.input}
+            placeholder={`Enter qty (max ${availableStock})`}
+            placeholderTextColor={colors.textMuted}
+            keyboardType="numeric"
+            value={quantity}
+            onChangeText={(t) => {
+              setQuantity(t);
+              if (errorText) setErrorText('');
+            }}
+          />
+        </View>
 
-          <SafeAreaView edges={['bottom']} style={styles.footer}>
+        {/* Reason Input */}
+        <View style={styles.fieldGroup}>
+          <Text style={styles.label}>Reason / Notes (Optional)</Text>
+          <BottomSheetTextInput
+            style={[styles.input, styles.multilineInput]}
+            placeholder="e.g. Torn packaging, moisture damage, transit break..."
+            placeholderTextColor={colors.textMuted}
+            value={reason}
+            onChangeText={setReason}
+            multiline
+            numberOfLines={3}
+            textAlignVertical="top"
+          />
+        </View>
+
+        {errorText ? <Text style={styles.errorText}>{errorText}</Text> : null}
+
+        <View style={styles.footerRow}>
+          <TouchableOpacity
+            style={styles.cancelBtn}
+            onPress={handleClose}
+            activeOpacity={0.75}
+          >
+            <Text style={styles.cancelBtnText}>Cancel</Text>
+          </TouchableOpacity>
+          <View style={styles.submitWrap}>
             <AuthButton
-              title={isPending ? 'Saving...' : 'Confirm Damaged Stock'}
+              title={isPending ? 'Saving...' : 'Confirm Damage'}
               onPress={handleConfirm}
-              disabled={isPending}
               loading={isPending}
+              disabled={isPending}
             />
-          </SafeAreaView>
-        </Animated.View>
-      </KeyboardAvoidingView>
-    </Modal>
+          </View>
+        </View>
+      </BottomSheetScrollView>
+    </BottomSheetModal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
-    justifyContent: 'flex-end',
-  },
-  backdropDismiss: {
-    flex: 1,
-  },
-  sheet: {
+  sheetBg: {
     backgroundColor: colors.surface,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    height: '92%',
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
   },
-  dragHandle: {
-    alignSelf: 'center',
+  handleIndicator: {
+    backgroundColor: colors.border,
     width: 40,
     height: 4,
-    borderRadius: radius.full,
-    backgroundColor: colors.border,
-    marginTop: spacing.sm,
+  },
+  body: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xs,
+    gap: spacing.md,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingBottom: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderSubtle,
   },
   headerLeft: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.sm + 2,
+    flex: 1,
   },
   iconCircle: {
-    width: 36,
-    height: 36,
+    width: 38,
+    height: 38,
     borderRadius: radius.full,
     backgroundColor: colors.dangerBg,
+    borderWidth: 1,
+    borderColor: colors.dangerBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -302,78 +275,96 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: fontSize.md,
+    fontSize: fontSize.md + 1,
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
   },
   subtitle: {
     fontSize: fontSize.xs,
-    color: colors.textSecondary,
-    marginTop: 2,
+    color: colors.textMuted,
+    marginTop: 1,
   },
   closeBtn: {
-    width: 34,
-    height: 34,
+    width: 32,
+    height: 32,
     borderRadius: radius.full,
     backgroundColor: colors.surfaceSubtle,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  body: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xl,
-  },
-  availBar: {
+  availBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.surfaceSubtle,
-    borderRadius: radius.md,
+    backgroundColor: colors.primarySoft,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#BFDBFE',
+    borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
-    marginBottom: spacing.md,
   },
   availLabel: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.semibold,
-    color: colors.textSecondary,
+    color: colors.primary,
   },
   availVal: {
-    fontSize: fontSize.md,
+    fontSize: fontSize.sm + 1,
     fontWeight: fontWeight.bold,
-    color: colors.textPrimary,
+    color: colors.primary,
+  },
+  fieldGroup: {
+    gap: 6,
   },
   label: {
-    fontSize: fontSize.xs,
+    fontSize: fontSize.xs + 1,
     fontWeight: fontWeight.semibold,
     color: colors.textSecondary,
-    marginBottom: 6,
+  },
+  req: {
+    color: colors.danger,
   },
   input: {
-    height: 46,
+    backgroundColor: colors.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 11,
+    fontSize: fontSize.sm + 1,
+    color: colors.textPrimary,
+  },
+  multilineInput: {
+    minHeight: 82,
+    paddingTop: 11,
+  },
+  errorText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: colors.danger,
+  },
+  footerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  cancelBtn: {
+    paddingHorizontal: spacing.lg,
+    height: 48,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surfaceSubtle,
-    paddingHorizontal: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelBtnText: {
     fontSize: fontSize.sm,
-    color: colors.textPrimary,
-    marginBottom: spacing.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.textSecondary,
   },
-  inputError: {
-    borderColor: colors.danger,
-    marginBottom: 4,
-  },
-  errorText: {
-    fontSize: fontSize.xs,
-    color: colors.danger,
-    marginBottom: spacing.md,
-  },
-  footer: {
-    padding: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderSubtle,
+  submitWrap: {
+    flex: 1,
   },
 });
